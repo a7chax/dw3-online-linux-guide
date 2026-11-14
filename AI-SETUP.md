@@ -1,5 +1,12 @@
 # AI Setup: Claude Code and Codex
 
+For the current ready source kit, begin with [automation/README.md](automation/README.md).
+Its [files/](automation/files/) directory is authoritative for current code; the playbook's embedded Appendix A is the original baseline.
+Install the kit into the user's game directory after the baseline port procedure and before current runtime verification.
+
+From this repository, preview with `uv run --no-project automation/install.py --game-dir "/path/to/DW3 Online"`; add `--apply` to install the reviewed source files.
+Then change to that game directory and follow the kit's `uv sync --locked`, native build and login instructions.
+
 ## 1. Purpose
 
 Use this guide before the [AI replication playbook](AI-LINUX-PORT-PLAYBOOK-STE100.md).
@@ -19,12 +26,15 @@ A normal browser chat without local tool access cannot perform the complete proc
 | Skill | Source | Role in this task |
 | --- | --- | --- |
 | `reverse-engineer-anything` | [REA](https://github.com/morluto/rea) | Main task skill. Inspect the APK and JNI library through REA. |
+| `dw3-linux-control` | [Included skill](automation/files/skills/dw3-linux-control/SKILL.md) | Operate the installed port, read quest/state files, and maintain the supported automation workflow. |
 | `systematic-debugging` | [Superpowers](https://github.com/obra/superpowers) | Recommended. Reproduce failures and identify their causes before changes. |
 | `verification-before-completion` | [Superpowers](https://github.com/obra/superpowers) | Recommended. Require actual build, process, and graphical evidence before success claims. |
 | `test-driven-development` | [Superpowers](https://github.com/obra/superpowers) | Optional. Use it when you change the supplied adapter or launcher behavior. |
 | `requesting-code-review` | [Superpowers](https://github.com/obra/superpowers) | Optional. Review the implementation before the final handoff. |
 
-The task-specific skill is `reverse-engineer-anything`.
+For port/version analysis, use `reverse-engineer-anything`.
+For an already installed port, use `dw3-linux-control` from the installed `skills/dw3-linux-control/SKILL.md` and its references.
+Routine state inspection and automation do not require a new REA analysis.
 The other skills support the engineering process.
 They are not dependencies of the completed game.
 
@@ -125,6 +135,11 @@ See the [official Codex skills documentation](https://developers.openai.com/code
 Installing a workflow skill does not install Java, GCC, or Android SDK Build Tools.
 Those tools remain separate prerequisites in the playbook.
 
+The current source kit includes the complete `skills/dw3-linux-control/` directory.
+After installing it in the game directory, retain its references and expose it to the chosen agent through the project skill location in the table above, or ask the agent to read its `SKILL.md` directly.
+Do not copy a single instruction file without its references.
+Use `uv sync --locked` in the installed game directory and `uv run --locked` for Python commands.
+
 ## 5. Give the Task to Claude Code or Codex
 
 Use the following prompt with either agent.
@@ -143,7 +158,8 @@ Original APK: /absolute/path/to/DW3-Online.apk
 Writable output directory: /absolute/path/to/linux-port-workspace
 
 Reproduce the native Linux Java port from the playbook.
-Create its source files from Appendix A.
+Use Appendix A to understand the baseline, then install the current automation/ source kit before building or verifying the current version.
+Follow automation/README.md for installation and use uv for all Python dependencies and commands.
 Use the matching desktop client, game data, and APK library.
 Build the native adapter, Java bridge, executable, and included Java runtime.
 Include the multi-window bootstrap and its regression checks.
@@ -160,8 +176,10 @@ Give me the executable path, start command, evidence, and remaining limits.
 
 ## 6. Runtime and User Verification
 
-Claude Code, Codex, REA, and the skills are build-time tools.
-The completed game does not require them during normal operation.
+The completed game and its normal Python automation run without AI calls.
+REA is used to inspect or adapt game versions; it is not a runtime dependency.
+The optional `--repair-with-codex` mode invokes an installed, authenticated Codex CLI only after repeated eligible controller failures.
+Without that flag, repair remains manual. Normal automation does not use Claude Code or Codex for each movement.
 
 The user reported successful account login and gameplay on the original port.
 The agent independently verified native startup, asset loading, and the rendered login screen.

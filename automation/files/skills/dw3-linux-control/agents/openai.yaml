@@ -1,0 +1,4 @@
+interface:
+  display_name: "DW3 Linux Control"
+  short_description: "Read DW3 state, quests, and local map routes"
+  default_prompt: "Use $dw3-linux-control to inspect the current DW3 game state and carry out the requested navigation or quest step."

@@ -1,11 +1,13 @@
 # AI Replication Instructions: Native Linux Port of DW3 Online
 
+> **Current source kit:** This playbook records the original port and its 13-file baseline. Use [automation/README.md](automation/README.md) and [automation/files/](automation/files/) for the maintained launcher, bridge, state controls, automation, tests, and skill. These files supersede corresponding code in Appendix A. In particular, do not restore the historical embedded runtime-module or Java build-classpath settings over the current files. Install the current kit after the baseline procedure and before verifying the current build. Supply your own matching original game package and APK from the official download page.
+
 ## 1. How to Use This Document
 
 Give this complete document to the other AI.
 Supply the original Windows package and the original APK.
 The AI does not need the previous conversation or the existing port files.
-Appendix A contains the source files that the AI must create.
+Appendix A preserves the original baseline. Install the current source kit before building or verifying the maintained version.
 
 This document uses ASD-STE100 Issue 9 style.
 Technical names and code retain their exact forms.
@@ -254,6 +256,8 @@ The original libGDX and FreeType desktop native JARs already include Linux libra
 The launcher must exclude the Windows LWJGL native JARs.
 
 ### Step 6. Create the Adapter and Bridge Source
+
+For the maintained version, use the [current kit installer](automation/README.md) to put the source files in the game workspace. It supersedes matching Appendix A files. Use its locked uv environment for the build; the historical commands and embedded files below document the original baseline.
 
 1. Create every file in Appendix A at its specified relative path.
 2. Keep the original `app/` and `data/` directories.
@@ -510,6 +514,8 @@ Python, Java build tools, GCC, and `jlink` produce the runnable port.
 The resulting executable is a directory-based application, not a single-file bundle.
 
 ## Appendix A. Complete Source Files
+
+**Historical baseline:** These embedded files explain the original port. The maintained replacements are in [automation/files/](automation/files/). Use the current kit before building; do not copy these older files over an installed kit. The current build retains required JDK character sets and includes the bridge in the Java test compilation classpath.
 
 Create the following files before the build steps.
 Paths are relative to the extracted game directory.

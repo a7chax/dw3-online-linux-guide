@@ -1,0 +1,365 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "f5e47543d9b26377f96d2edbfc39c506f93eb8a126d65705286dca52fae8b4bc",
+      "mode": 420
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "b35ba2f16a01dc8975c63c775200ad6f6cb0f1c95ab0c2420180d26780c4aedf",
+      "mode": 420
+    },
+    {
+      "path": "AI-GAME-CONTROL.md",
+      "sha256": "e1b8d6af4356e23033e325717f8769fdb895dfbd471c29157eb5f022a5d0bbed",
+      "mode": 420
+    },
+    {
+      "path": "AI-LINUX-PORT-PLAYBOOK-STE100.md",
+      "sha256": "61cbc16f86508791571bf3705ae678130f9e0591474abd4195ea9943c48a3c62",
+      "mode": 420
+    },
+    {
+      "path": "AI-SETUP.md",
+      "sha256": "d8c6642e5acc25b24165d32c77a965d5a70c450453eb5c4d67965f6faf4ff04d",
+      "mode": 420
+    },
+    {
+      "path": "GAME-STATE-PRINTING.md",
+      "sha256": "b6f9fca2018dc9612139999744fbaafdb8b95bca1c66a82b7ab89814ecf303ba",
+      "mode": 420
+    },
+    {
+      "path": "LINUX-PORT-GUIDE-STE100.md",
+      "sha256": "8520140234bb70181355926ff7cc584a0a293f420d942beece3046725bb239b4",
+      "mode": 420
+    },
+    {
+      "path": "README-AUTOPLAY.md",
+      "sha256": "7b80cc620d24657a3465b98ddc019d5e68dc11ab323ccf66129ffb78aaec8112",
+      "mode": 420
+    },
+    {
+      "path": "README-LINUX.md",
+      "sha256": "db573d485869fa7ce497cfd46b61c4597f46e9f98b31b8227d355cbd84c3d903",
+      "mode": 420
+    },
+    {
+      "path": "WORLD-ATLAS.md",
+      "sha256": "418877fd2dfd2bace03462c937964e6b7d6f8a78f3e49327ce400cfd3a573f13",
+      "mode": 420
+    },
+    {
+      "path": "ai-game.py",
+      "sha256": "2a05395abe5d4cad9961de7871bbff0835226305b3532783353441bc0802f22e",
+      "mode": 493
+    },
+    {
+      "path": "automation.py",
+      "sha256": "c9f1bfa310c528e506b5546764e79152204de8cdbc11e8df09b73f9d47cc40aa",
+      "mode": 420
+    },
+    {
+      "path": "autoplay.py",
+      "sha256": "11121bbaa775479f968c51f804daa08c518b29c63b1c0e3d6fcbe03f18577b8b",
+      "mode": 420
+    },
+    {
+      "path": "codex_repair.py",
+      "sha256": "459260d052a0f110699025adf6b36c8bcadb347b415f2a17191aa6f0728dbfd9",
+      "mode": 420
+    },
+    {
+      "path": "docs/autoplay-design.md",
+      "sha256": "1eb0120e4e73f96853d7cf91745ff679b545e440bcac691948b82c4641f98584",
+      "mode": 420
+    },
+    {
+      "path": "game-control.py",
+      "sha256": "9e5eca7dc1e3e46071e2087972cb1dc1f35380fd73b49c0f0a199ad84fb20003",
+      "mode": 493
+    },
+    {
+      "path": "linux/native/build-executable.sh",
+      "sha256": "852e2d775c5614440534ccd667d25128876350ddd233449ace6f3da0ddff62e9",
+      "mode": 493
+    },
+    {
+      "path": "linux/native/build.py",
+      "sha256": "f2e51a2e29dd8a4254b65a1e80f8c010fe9baaba1cb5743ad14399fd94a730b8",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/launcher.c",
+      "sha256": "380cdc49c179a4330d78576a23eff3fd85b5acaa16a11ad21be7a7e53d999dd2",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/android/app/ActivityThread.java",
+      "sha256": "262e90e954d66424666ae4bd19d8907bd08cc0b8b1594d9ff49170e99676b118",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/android/app/Application.java",
+      "sha256": "b11003bd17d3520118a2bb6fb5cb7adf60d43033ac93cf3f3270bc556db36703",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/android/content/pm/PackageInfo.java",
+      "sha256": "5aa1d4945a0ce461838e03615bbc0a729d26f231aa937786b4ac0ecf88c4c060",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/android/content/pm/PackageManager.java",
+      "sha256": "50359eb6164ddfbcf4f39f3c7eb0916625f0423e92c9217a5d4e352054b383bb",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/android/content/pm/Signature.java",
+      "sha256": "843b353c3a677fc6344fd0f12567e805ad82b5c34c5821e47857d4963cdb4937",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/android/os/Build.java",
+      "sha256": "0a4f2954216ba05ce689176e9fab5a9ba53faeb0036701f88c10bc2cd6199f9a",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/dw3/linux/ControlBridge.java",
+      "sha256": "d15793d4cdbee49731088e923ab3936529e7feb10284f5ceb7540a44ac42dfbd",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/dw3/linux/DesktopLauncher.java",
+      "sha256": "cece38d6748ea547806f88b7341fc4200d51969fbd9ffdebe0e7eba52ff66f41",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/dw3/linux/NativeCheck.java",
+      "sha256": "c049fbf7e2114a505ba7c65beed1586ad098a14326c3ef277facfd5b5eb4fcd6",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/dw3/linux/StatePrinter.java",
+      "sha256": "f91ecaa828cc79bbda3c2cdc00685e33cf103e52f08843a3b7eacea73779e49b",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/dw3/linux/WorldAtlas.java",
+      "sha256": "b8b2ae23c48b8cec767dfb2dfa41024fbf2ad5d47d7dd02a69b9f7a6d401fb15",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_automation_entry.py",
+      "sha256": "fc6cd09cc5588a82c418d6a8b39af926a481ec1dcbedff48b0a12a025a6241d2",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_autoplay.py",
+      "sha256": "50d22cd2a635488149ad38daff05cc22c2a05487e783a2fd06d1317ad582938f",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_codex_repair.py",
+      "sha256": "62537f8108068b3a4f8a1c3f86d7ce997a484c47683fe2b910b0bfd07a94820d",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_control_release.py",
+      "sha256": "f38d286779c2b7956bec77f0471fa08986e68fab30b7e791233c7f7bf9c76e5b",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_credentials.py",
+      "sha256": "8ccaa1f5b19df79abc281756c475ab44f0f531f77ac555b99016009ffbfccd39",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_diagonal_control.py",
+      "sha256": "16300ea72a7ab6f78481df95e5c73e20e3c876a71a551e17c3f87603c8c4494a",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_dialogue_snapshot.py",
+      "sha256": "eb858b06d18c29a9040193746a65e9f19b515d6e561dff84b4fad872014b1fe6",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_follow_interruptions.py",
+      "sha256": "2faf1ec24d0a67f029338d291799d8ebd9b617acf2973b58ba8ecbc0df32edf3",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_game_input_ipc.py",
+      "sha256": "b73c5dd558b2ece0f671bb8548b5a87005a1910029b4bdcce6dabe1062c61589",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_instances.py",
+      "sha256": "0cabf18cf60ece425a5f5784f67586ca9de191d219e3dbed6778559f96f3bc81",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_local_path.py",
+      "sha256": "03532c57c0c69349b2c5f863fb19c6a8d69dce0670f4d4d52a7ee3970ec49c5e",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_motion_watch.py",
+      "sha256": "82cb7102ef416e379a1064af67c21ede16a6a5ce03fda4596d4e76ceef2c592b",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_native_keys.py",
+      "sha256": "9d35f824c8f97d1773d092ea9bc5980644455ce8bf7df0d85de3f422020e2314",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_navigation_modes.py",
+      "sha256": "cc7505390f6ce1a96f9f16b780cd3904e18cecd347353ec29b40b5f2398f2af7",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_navigation_recovery.py",
+      "sha256": "509c09e119c0b788f38348346601bf521e9aba0914558e4f8c794b48972c404b",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_popup_detection.py",
+      "sha256": "20c54740f9fa77e06db4a944078d8a62e7974336eaecbe804be326e34de903e9",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_quest_catalog.py",
+      "sha256": "874ecd3cefdf7812804c34b2159623337c55aca3d536e89240f339c4701442c0",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_quest_state.py",
+      "sha256": "9c47a00a0e940e3730126375d72ee0c8c94d90f8cee0463328d78d3c354c0924",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_quest_text_export.py",
+      "sha256": "37adc1c4a24c9fa81c25248421526c834ca794ba2f14500430c17886546be838",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_runtime.py",
+      "sha256": "77d805e0c1b34abc9cc7a327e3380d871c92411c707ec1bad50397bf97669c13",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_scene.py",
+      "sha256": "5c10ce639a3001c5022c4f2f54760bfc6c38e30bac103548c4b1911c75b8220d",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_smart_follow.py",
+      "sha256": "b76555a92c5eda6d9de00e442739906cfa7c06a3962a8aadf32062ed4a0e444e",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_state_file.py",
+      "sha256": "2e332e848ddce7a12853258f1db84c9c1668ad33aec9c7e4601db2126c2375e9",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_state_printer.py",
+      "sha256": "abab800b0b2db96e016e757c693612905ea3a8b3cb9949218387e5be8d2e9857",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_steering_performance.py",
+      "sha256": "b2da004f1f100618800f367f449c0edd1bfaf3c757e8d9885faf3e47c4ca6926",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_story_state.py",
+      "sha256": "c1994c19679c97fff7a2deef39535ea2b7eb12f0a8141f4f424f511b1261650f",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_talk.py",
+      "sha256": "6a13511a10d39deff925772d07866004aa7990a9773d3f20c56088c2beaaceb0",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_trace_control.py",
+      "sha256": "b5f2a68ac33e600937e0bdc184019c5b38f4bd6b6cbb8973cccddaae8bcd9343",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_world_atlas.py",
+      "sha256": "166c337926b234fcff4fc03c6cee734ef160fa5653479190ccb49992bfcee134",
+      "mode": 420
+    },
+    {
+      "path": "login-ai-game.py",
+      "sha256": "3bbbc5697c5b5b13ec88c59ef096d4e4fd3007b580daa80247d4131d0a8af31e",
+      "mode": 493
+    },
+    {
+      "path": "motion_watch.py",
+      "sha256": "e3cea646c5389df525ad309ee6c9959a559caf20d50f4a0e7227e6ce775756bd",
+      "mode": 420
+    },
+    {
+      "path": "play-linux.sh",
+      "sha256": "db5f15b060dba1e609dd08181041c4bb9ce13a5a23e7ab03268c361c6deea908",
+      "mode": 493
+    },
+    {
+      "path": "print-game-state.sh",
+      "sha256": "a1ac3a53ed570dd3806084c1f49ae553194da0f0f500d673cd85022df6642d81",
+      "mode": 493
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "ae5c6b8cd509b2999f0472f5be06735083b8ab40623f5d486802c047e2f81dd9",
+      "mode": 420
+    },
+    {
+      "path": "quest_catalog.py",
+      "sha256": "c36fd6dd1b9da17324905ea5ed78ef41d69f7ac57ff36a8158fe59a814cdf173",
+      "mode": 420
+    },
+    {
+      "path": "scripts/export-quest-text.py",
+      "sha256": "b71b1a060d76ce54af85fa578289f430f17c80c6e7b85fdf781baa6f31cd3d1e",
+      "mode": 420
+    },
+    {
+      "path": "skills/dw3-linux-control/SKILL.md",
+      "sha256": "1b2e2750642d04d80e0de31fec3002792573acdc2b6ffe15ff711fd0db9e9ce2",
+      "mode": 420
+    },
+    {
+      "path": "skills/dw3-linux-control/agents/openai.yaml",
+      "sha256": "dc26dd14a502613437a35250d5bbbfec63819b1b5840d653bd2847e1dff3003a",
+      "mode": 420
+    },
+    {
+      "path": "skills/dw3-linux-control/references/state-and-adapter.md",
+      "sha256": "4541b50d815779a9147bcf392ad89b0f0a52586755e058b776d01b06ff4f32b9",
+      "mode": 420
+    },
+    {
+      "path": "start-ai-game.sh",
+      "sha256": "68bd13babd40dbe7157c947bc9ecf75483db4fb87e583e170df70c0e0fb59783",
+      "mode": 493
+    },
+    {
+      "path": "uv.lock",
+      "sha256": "089c7e62fa4e5f10e1ac3eecce202f819caf98d7c24153f5dbeb645e2055b33f",
+      "mode": 420
+    },
+    {
+      "path": "world_map.py",
+      "sha256": "bd03924e73ff8bccf1c1fee09a4d84f622d7220c2ce6e637c106ebae521060da",
+      "mode": 420
+    }
+  ]
+}

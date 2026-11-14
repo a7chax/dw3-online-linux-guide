@@ -3,17 +3,41 @@
 Reproduce a native Linux Java port with an AI coding agent and REA.
 Start with the original Windows package and the matching Android APK.
 
-The [AI replication playbook](AI-LINUX-PORT-PLAYBOOK-STE100.md) gives the complete procedure.
-It includes all 13 source and test files for the adapter, Java bridge, and Linux launcher.
+The [AI replication playbook](AI-LINUX-PORT-PLAYBOOK-STE100.md) explains the original port.
+Its Appendix A preserves the original 13-file baseline.
+Use [automation/](automation/README.md) for the current installable source kit, state controls, map tools, tests, and reusable AI skill.
+The files in [automation/files/](automation/files/) supersede corresponding embedded playbook code, including the launcher and bridge build.
+Install the current kit after the baseline port procedure, before runtime verification or automation.
 
 ## What This Repository Contains
 
-- `AI-LINUX-PORT-PLAYBOOK-STE100.md`: the procedure and complete source code for the receiving AI.
+- [automation/](automation/README.md): the current source kit and installation procedure for the user's game directory.
+- `AI-LINUX-PORT-PLAYBOOK-STE100.md`: the original port procedure and historical baseline source.
 - `README.md`: the input requirements, operating instructions, and explanation of the original failure.
 - `AI-SETUP.md`: the skills and REA setup for Claude Code and Codex.
 
-This repository does not contain the game download, APK, game assets, or prepared executables.
+This repository contains source code and instructions. It does not contain the game download, APK, game assets, account credentials, or prepared executables.
 Supply your own original game files.
+
+## Install the Current Source Kit
+
+After you prepare the matching game workspace, preview the source installation from this repository:
+
+```bash
+uv run --no-project automation/install.py --game-dir "/path/to/DW3 Online"
+```
+
+Apply the reviewed file changes with `--apply`:
+
+```bash
+uv run --no-project automation/install.py --game-dir "/path/to/DW3 Online" --apply
+```
+
+The installer copies source files. It does not download the game, build it, log in, or send input.
+Follow [automation/README.md](automation/README.md) for the manifest, backups, native build, locked Python environment, and automation commands.
+Keep your original game inputs and private `.env` local.
+
+After the kit is installed and the original inputs/dependencies and private credentials are ready, run `uv run --locked automation.py` from the game directory. It handles conditional builds, monitored login/reuse and persistent control. Use the same entry with `--status` or `--stop` to inspect or stop it without setup or game input. See the kit guide for supported states and limits.
 
 The instructions use ASD-STE100 Issue 9 style.
 No automated STE dictionary check was available.
@@ -44,6 +68,7 @@ It gives separate REA setup commands for Claude Code and Codex.
 Use these skills:
 
 - `reverse-engineer-anything`: the main REA workflow for this task.
+- `dw3-linux-control`: the included [game-control skill](automation/files/skills/dw3-linux-control/SKILL.md) for the existing port and automation.
 - `systematic-debugging`: recommended for failure analysis.
 - `verification-before-completion`: recommended for evidence-based completion checks.
 - `test-driven-development`: optional when you change the supplied code.
@@ -51,7 +76,8 @@ Use these skills:
 
 REA also needs a connected MCP server and a native analysis engine.
 Installing the skill instructions alone does not provide those tools.
-The completed game does not require the AI agent or its skills.
+The game and normal Python automation do not require an AI service.
+The optional `--repair-with-codex` mode needs an installed and authenticated Codex CLI only when a repeated controller failure triggers a repair.
 
 ## Supported Inputs
 
@@ -61,7 +87,7 @@ The completed game does not require the AI agent or its skills.
 | Android package | `DW3-Online.apk`, version 0.1.95, version code 10095. |
 | Host | Linux x86_64 with glibc and a graphical desktop. |
 | Java build tools | JDK 21 with `java`, `javac`, `jar`, and `jlink`. |
-| Other build tools | Python 3, Bash, GCC, and standard ELF tools. |
+| Other build tools | uv with Python, Bash, GCC, and standard ELF tools. |
 | Android tools | SDK Build Tools with `aapt` and `apksigner`. |
 | Analysis tools | REA with APK archive inspection and native analysis through Hopper. |
 
@@ -100,7 +126,8 @@ Writable output directory: /absolute/path/to/linux-port-workspace
 
 Use REA to inspect the actual APK and native library.
 Verify the input hashes before you use the supplied adaptation.
-Create the source files from Appendix A.
+Use Appendix A to understand the baseline. Install the current automation/ source kit into the game workspace before building or verifying the current version.
+Use uv for Python dependencies and commands. Follow automation/README.md for the installer and locked environment.
 Build the adapter, Java bridge, Linux executable, and included Java runtime.
 
 Use the existing desktop Java client and game data.
@@ -119,7 +146,7 @@ Report the specific blocker if a required step cannot proceed.
 ```
 
 The receiving AI does not need the original conversation.
-Appendix A contains the source files that it must create.
+Appendix A preserves the original baseline. The current source kit is in automation/files/; use its installer and manifest rather than copying stale embedded files over it.
 The AI must still verify its environment and the supplied game version.
 
 ## Why the Windows-Only Attempt Failed
@@ -178,6 +205,9 @@ It is not a general method to convert arbitrary Windows programs or APKs.
 
 These commands apply after the AI has completed the playbook.
 The repository itself is a guide, not a ready-to-run game.
+
+First install the current source kit as described in [automation/README.md](automation/README.md).
+After the native build and login, follow its installed `README-AUTOPLAY.md` for persistent automation, status, and stop commands.
 
 1. Change to the completed game directory.
 
@@ -244,7 +274,7 @@ It does not change the game's lock code.
 Run the regression checks after a build:
 
 ```bash
-python3 linux/native/tests/test_instances.py
+uv run --locked python linux/native/tests/test_instances.py
 ```
 
 The three checks cover concurrent profile selection, released profile reuse, and an existing older client.

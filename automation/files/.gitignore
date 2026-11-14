@@ -1,0 +1,18 @@
+# Private local credentials; only the placeholder sample may be published.
+.env
+.env.*
+!.env.example
+
+# Per-user game state and navigation sessions.
+.linux-home/
+linux/ai-sessions/
+linux/diagnostics/
+linux/automation-backups/
+linux/world/
+__pycache__/
+*.py[cod]
+.venv/
+.cache/
+.uv-cache/
+game-state.json
+game-state.log
