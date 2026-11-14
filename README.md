@@ -10,12 +10,48 @@ It includes all 11 source files for the adapter, Java bridge, and Linux launcher
 
 - `AI-LINUX-PORT-PLAYBOOK-STE100.md`: the procedure and complete source code for the receiving AI.
 - `README.md`: the input requirements, operating instructions, and explanation of the original failure.
+- `AI-SETUP.md`: the skills and REA setup for Claude Code and Codex.
 
 This repository does not contain the game download, APK, game assets, or prepared executables.
 Supply your own original game files.
 
 The instructions use ASD-STE100 Issue 9 style.
 No automated STE dictionary check was available.
+
+## Download the Original Game
+
+Use the [official DW3 Online website](https://digitalna.com.br/).
+Its [download page](https://digitalna.com.br/baixar) provides the Windows package and Android APK.
+
+1. Open the official download page.
+2. Download the Windows 64-bit ZIP package.
+3. Extract the complete Windows package.
+4. Download the Android APK from the same page.
+5. Check the version and hashes against the playbook.
+
+The Windows package includes `DW3 Online.exe`, `app/`, `data/`, and its Windows runtime.
+The `.exe` alone is insufficient for this port.
+Keep the full package and the matching APK.
+
+The official site can offer a newer version than the inspected version.
+Do not apply the pinned adaptation to different files without a new analysis.
+
+## Claude Code and Codex Skills
+
+Read [AI-SETUP.md](AI-SETUP.md) before the replication procedure.
+It gives separate REA setup commands for Claude Code and Codex.
+
+Use these skills:
+
+- `reverse-engineer-anything`: the main REA workflow for this task.
+- `systematic-debugging`: recommended for failure analysis.
+- `verification-before-completion`: recommended for evidence-based completion checks.
+- `test-driven-development`: optional when you change the supplied code.
+- `requesting-code-review`: optional for an implementation review.
+
+REA also needs a connected MCP server and a native analysis engine.
+Installing the skill instructions alone does not provide those tools.
+The completed game does not require the AI agent or its skills.
 
 ## Supported Inputs
 
@@ -42,14 +78,19 @@ A different game version requires a new analysis.
    cd dw3-online-linux-guide
    ```
 
-2. Extract the original Windows game into a separate workspace.
-3. Put the matching `DW3-Online.apk` in that workspace.
-4. Give the AI access to the playbook and both original inputs.
-5. Replace the example paths in this prompt.
-6. Give the completed prompt to the AI.
+2. Complete the Claude Code or Codex setup in `AI-SETUP.md`.
+3. Extract the original Windows game into a separate workspace.
+4. Put the matching `DW3-Online.apk` in that workspace.
+5. Give the AI access to this repository and both original inputs.
+6. Replace the example paths in this prompt.
+7. Give the completed prompt to the AI.
 
 ```text
-Read AI-LINUX-PORT-PLAYBOOK-STE100.md in full.
+Read AI-SETUP.md and AI-LINUX-PORT-PLAYBOOK-STE100.md in full.
+
+Use the reverse-engineer-anything skill for REA analysis.
+Use systematic-debugging and verification-before-completion when available.
+Report which skills and REA tools are actually available.
 
 Reproduce the native Linux Java port described in that document.
 
@@ -189,5 +230,7 @@ That test rebuilt the adapter, bridge, executable, and included Java runtime.
 The rebuilt native initialization and certificate check passed.
 It did not reuse those outputs from the existing port.
 
-Account login and gameplay were not tested.
-The receiving AI must repeat the graphical verification on the target computer.
+The user subsequently tested account login and gameplay successfully.
+Those results are user-reported verification.
+The agent independently verified native startup and the rendered login screen.
+The receiving AI must verify its own build on the target computer.

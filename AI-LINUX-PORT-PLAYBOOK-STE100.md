@@ -47,6 +47,36 @@ The tested host was Ubuntu 26.04.1 LTS.
 Other hosts require their own verification.
 Android Studio and an Android system image are not build requirements.
 
+### 3.1 Official Game Downloads
+
+Download the original files from the [official DW3 Online website](https://digitalna.com.br/).
+Use its [Windows and Android download page](https://digitalna.com.br/baixar).
+The Windows download is a ZIP package that includes the `.exe` and required game directories.
+Keep the complete package, not only the `.exe`.
+Obtain the matching Android APK from the same download page.
+
+The current downloads can differ from the inspected version.
+Compare the actual versions and hashes before the adaptation.
+
+### 3.2 Skills for Claude Code and Codex
+
+Use the `reverse-engineer-anything` skill from [REA](https://github.com/morluto/rea).
+Use `systematic-debugging` and `verification-before-completion` from [Superpowers](https://github.com/obra/superpowers) when available.
+Use `test-driven-development` when you modify implementation behavior.
+Use `requesting-code-review` for an optional final review.
+
+A skill contains workflow instructions.
+The REA MCP server supplies the actual analysis tools.
+Hopper supplies the native analysis capability used for this port.
+Confirm all required capabilities in the active Claude Code or Codex session.
+Do not infer tool availability from an installed skill file.
+
+The companion [AI setup guide](AI-SETUP.md) gives the agent-specific setup commands.
+If that guide is unavailable, follow the [REA setup documentation](https://github.com/morluto/rea/blob/main/docs/getting-started/installation.md).
+The implementation source in this playbook remains self-contained.
+
+### 3.3 Inspected Artifact Identities
+
 Use these identities for the supplied version.
 
 | Artifact | SHA-256 |
@@ -881,6 +911,14 @@ The rebuilt native initialization and certificate check passed.
 
 This document test did not repeat the graphical test.
 The receiving AI must perform the graphical checks in its own environment.
+
+### B.1 User Verification After the Initial Handoff
+
+The user reported successful account login and gameplay on this Linux port.
+The agent independently verified native startup and the login screen.
+The gameplay result is user-reported evidence.
+Do not treat it as an account test by the receiving AI.
+Repeat the necessary checks for a different computer or game version.
 
 ## Appendix C. Source References
 
