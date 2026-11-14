@@ -4,7 +4,7 @@ Reproduce a native Linux Java port with an AI coding agent and REA.
 Start with the original Windows package and the matching Android APK.
 
 The [AI replication playbook](AI-LINUX-PORT-PLAYBOOK-STE100.md) gives the complete procedure.
-It includes all 11 source files for the adapter, Java bridge, and Linux launcher.
+It includes all 13 source and test files for the adapter, Java bridge, and Linux launcher.
 
 ## What This Repository Contains
 
@@ -219,6 +219,46 @@ Expected output:
 Native library loaded; original APK signature validation passed.
 ```
 
+## Open Multiple Game Windows
+
+Start `DW3-Online-Linux` again while the first window remains open.
+The same executable can open more than one client.
+
+```bash
+./DW3-Online-Linux &
+./DW3-Online-Linux &
+```
+
+Each client uses a separate persistent Java home.
+The first available client uses `.linux-home/`.
+Additional clients use `.linux-home/instances/instance-2/`, `instance-3/`, and subsequent slots.
+Each home has its own settings, logs, and native game lock.
+The installed client libraries and game assets remain shared.
+
+The bootstrap reserves a profile until its game window closes.
+A later launch can reuse the released slot and its saved settings.
+Profile slots are not named accounts.
+The bootstrap also detects the native lock of an already-running older client.
+It does not change the game's lock code.
+
+Run the regression checks after a build:
+
+```bash
+python3 linux/native/tests/test_instances.py
+```
+
+The three checks cover concurrent profile selection, released profile reuse, and an existing older client.
+Two actual game windows also displayed their login screens together during the graphical test.
+The user subsequently confirmed that multiple windows work.
+
+## Native Linux Java Application
+
+The Linux executable starts the included OpenJDK runtime.
+The desktop game logic runs as Java bytecode in that Linux JVM.
+Graphics, audio, and the adapted asset library use native Linux code.
+This is a native Linux Java application, rather than a fully compiled standalone game binary.
+No Wine or Android emulator is involved.
+
 ## Verified Results and Limits
 
 The original implementation reached the fully rendered login screen on Linux.
@@ -233,4 +273,6 @@ It did not reuse those outputs from the existing port.
 The user subsequently tested account login and gameplay successfully.
 Those results are user-reported verification.
 The agent independently verified native startup and the rendered login screen.
+The multi-window launcher passed all three regression checks.
+The user also confirmed successful operation of multiple windows.
 The receiving AI must verify its own build on the target computer.

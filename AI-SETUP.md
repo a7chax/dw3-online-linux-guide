@@ -146,6 +146,7 @@ Reproduce the native Linux Java port from the playbook.
 Create its source files from Appendix A.
 Use the matching desktop client, game data, and APK library.
 Build the native adapter, Java bridge, executable, and included Java runtime.
+Include the multi-window bootstrap and its regression checks.
 
 Use REA for the APK inventory and native library analysis.
 Preserve the original files, native asset code, and certificate checks.
@@ -165,4 +166,7 @@ The completed game does not require them during normal operation.
 The user reported successful account login and gameplay on the original port.
 The agent independently verified native startup, asset loading, and the rendered login screen.
 The Markdown source also passed an independent rebuild and native initialization check.
+Three regression checks passed for profile isolation, profile reuse, and existing-client compatibility.
+Two real clients displayed their login screens at the same time.
+The user confirmed that multiple game windows work.
 A new computer or game version still requires its own verification.

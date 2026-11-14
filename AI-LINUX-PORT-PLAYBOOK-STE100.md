@@ -333,6 +333,8 @@ The builder compiles `launcher.c` with GCC.
 It creates a reduced Java 21 runtime with `jlink`.
 The executable selects that runtime from its own directory.
 It forwards the user arguments to `play-linux.sh`.
+The script starts `dw3.linux.DesktopLauncher`.
+That bootstrap reserves a separate persistent home before it invokes the original game entry point.
 
 3. Examine the output formats.
 
@@ -375,6 +377,38 @@ JAVA_HOME=/does-not-exist /absolute/path/to/DW3-Online-Linux --check
 
 The executable must still select its included runtime.
 
+#### Step 9.1. Verify Multiple Game Windows
+
+1. Start the same Linux executable twice.
+
+```bash
+./DW3-Online-Linux &
+./DW3-Online-Linux &
+```
+
+2. Confirm that both windows display the login screen.
+3. Confirm that each process holds a different native game lock.
+4. Confirm that each process holds its own launcher reservation.
+5. Run the profile regression checks.
+
+```bash
+python3 linux/native/tests/test_instances.py
+```
+
+The first free slot uses `.linux-home/`.
+Additional slots use `.linux-home/instances/instance-N/`, with `N` starting at `2`.
+The bootstrap holds `.linux-launcher.lock` in the selected home during the client lifetime.
+The game retains its existing `.dw3online/aberto.lock` behavior within that separate home.
+
+The bootstrap checks an existing native game lock before it selects a profile.
+This keeps an already-running client on the older launcher undisturbed.
+A released profile remains available for reuse with its saved settings.
+Clients do not share their profile settings or lock files.
+
+The builder publishes the bridge and adapter with atomic file replacement.
+Existing clients can retain their already-open library files during a local rebuild.
+Do not replace an active mapped library by truncating its existing file.
+
 ### Step 10. Prove Native Linux Execution
 
 1. Get the process identifier from the actual launch.
@@ -387,7 +421,7 @@ Require the following evidence.
 | Item | Required observation |
 | --- | --- |
 | Process executable | The included `linux/runtime/bin/java`. |
-| Main class | `dw.client.ClientMain`. |
+| Process entry point | `dw3.linux.DesktopLauncher`, which invokes `dw.client.ClientMain`. |
 | JVM library | The included `linux/runtime/lib/server/libjvm.so`. |
 | Game library | The adapted `linux/lib/libdwcofre.so`. |
 | Graphics libraries | Linux `liblwjgl.so` and `libglfw.so`. |
@@ -455,6 +489,8 @@ Do not declare the port complete until these checks pass.
 - The original native asset code loads the game assets.
 - The Linux executable uses the included Java runtime.
 - The login interface renders correctly.
+- Two clients remain open with separate profile locks.
+- All three profile regression checks pass.
 - The process evidence identifies native Linux Java and Linux libraries.
 - The original Windows files and APK remain unchanged.
 - The handoff gives the exact start command and required directories.
@@ -532,14 +568,14 @@ fi
 [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]] ||
     fail 'Launch this game from a graphical Linux desktop.'
 
-# Keep settings, logs and the single-instance lock inside the game folder.
+# The Java bootstrap reserves a separate persistent home for each open client.
 mkdir -p "$game_dir/.linux-home"
 exec "$java_bin" \
     "-Duser.home=$game_dir/.linux-home" \
     "-Djava.library.path=$game_dir/linux/lib:$game_dir/app" \
     -Djpackage.app-version=1.0.0 \
     -XX:+DisableAttachMechanism \
-    -cp "$classpath" dw.client.ClientMain "$@"
+    -cp "$classpath" dw3.linux.DesktopLauncher "$@"
 ```
 
 ### A.2. `linux/native/build.py`
@@ -661,15 +697,20 @@ def main():
     output = ROOT / "linux/lib"
     output.mkdir(parents=True, exist_ok=True)
     sources = sorted((Path(__file__).parent / "src").rglob("*.java"))
-    with tempfile.TemporaryDirectory(prefix="dw3-linux-build-") as temporary:
+    # Publish new files atomically so an existing game can keep its mapped files.
+    with tempfile.TemporaryDirectory(prefix=".dw3-linux-build-", dir=output) as temporary:
         classes = Path(temporary) / "classes"
         classes.mkdir()
         subprocess.run(["javac", "--release", "17", "-d", str(classes),
                         *map(str, sources)], check=True)
         (classes / "dw3-apk-signer.der").write_bytes(certificate)
-        subprocess.run(["jar", "--create", "--file", str(output / "dw3-android-bridge.jar"),
+        bridge = Path(temporary) / "dw3-android-bridge.jar"
+        subprocess.run(["jar", "--create", "--file", str(bridge),
                         "-C", str(classes), "."], check=True)
-    (output / "libdwcofre.so").write_bytes(adapted)
+        native = Path(temporary) / "libdwcofre.so"
+        native.write_bytes(adapted)
+        os.replace(native, output / "libdwcofre.so")
+        os.replace(bridge, output / "dw3-android-bridge.jar")
     print("Built native Linux adapter; original native machine code is unchanged.")
     print("APK signature verified; original signer certificate bundled in Java bridge.")
 
@@ -901,6 +942,228 @@ public final class NativeCheck {
 }
 ```
 
+### A.12. `linux/native/src/dw3/linux/DesktopLauncher.java`
+
+```java
+package dw3.linux;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+
+/** Keeps concurrent clients in separate persistent homes without changing game code. */
+public final class DesktopLauncher {
+    private DesktopLauncher() {}
+
+    public static void main(String[] args) throws Throwable {
+        Path primaryHome = Path.of(System.getProperty("user.home")).toAbsolutePath().normalize();
+        try (ProfileLease profile = acquireProfile(primaryHome)) {
+            System.setProperty("user.home", profile.home.toString());
+            Class<?> client = Class.forName("dw.client.ClientMain");
+            try {
+                client.getMethod("main", String[].class).invoke(null, (Object) args);
+            } catch (InvocationTargetException error) {
+                throw error.getCause();
+            }
+        }
+    }
+
+    private static ProfileLease acquireProfile(Path primaryHome) throws IOException {
+        for (int slot = 1; slot < Integer.MAX_VALUE; slot++) {
+            Path home = slot == 1 ? primaryHome
+                    : primaryHome.resolve("instances").resolve("instance-" + slot);
+            ProfileLease lease = tryAcquire(home);
+            if (lease != null) return lease;
+        }
+        throw new IOException("No free game profile is available.");
+    }
+
+    private static ProfileLease tryAcquire(Path home) throws IOException {
+        Files.createDirectories(home);
+        FileChannel channel = FileChannel.open(home.resolve(".linux-launcher.lock"),
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+        FileLock lock = null;
+        boolean retained = false;
+        try {
+            lock = channel.tryLock();
+            if (lock == null || !gameLockAvailable(home)) return null;
+            ProfileLease lease = new ProfileLease(home, channel, lock);
+            retained = true;
+            return lease;
+        } catch (OverlappingFileLockException busy) {
+            return null;
+        } finally {
+            if (!retained) {
+                try {
+                    if (lock != null) lock.release();
+                } finally {
+                    channel.close();
+                }
+            }
+        }
+    }
+
+    private static boolean gameLockAvailable(Path home) throws IOException {
+        Path gameLock = home.resolve(".dw3online").resolve("aberto.lock");
+        if (!Files.exists(gameLock)) return true;
+        // Older launcher processes hold only this game lock, not our reservation.
+        try (FileChannel channel = FileChannel.open(gameLock, StandardOpenOption.WRITE);
+             FileLock lock = channel.tryLock()) {
+            return lock != null;
+        } catch (OverlappingFileLockException busy) {
+            return false;
+        }
+    }
+
+    private static final class ProfileLease implements AutoCloseable {
+        private final Path home;
+        private final FileChannel channel;
+        private final FileLock lock;
+
+        private ProfileLease(Path home, FileChannel channel, FileLock lock) {
+            this.home = home;
+            this.channel = channel;
+            this.lock = lock;
+        }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                lock.release();
+            } finally {
+                channel.close();
+            }
+        }
+    }
+}
+```
+
+### A.13. `linux/native/tests/test_instances.py`
+
+```python
+#!/usr/bin/env python3
+"""Exercise real JVM processes and the game's POSIX lock convention."""
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+import selectors
+import subprocess
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[3]
+JAVA = ROOT / 'linux/runtime/bin/java'
+BRIDGE = ROOT / 'linux/lib/dw3-android-bridge.jar'
+FIXTURE = '''package dw.client;
+import java.nio.channels.*;
+import java.nio.file.*;
+public final class ClientMain {
+ public static void main(String[] args) throws Exception {
+  Path home=Path.of(System.getProperty("user.home"));
+  Path state=home.resolve(".dw3online");
+  Files.createDirectories(state);
+  try(FileChannel channel=FileChannel.open(state.resolve("aberto.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+      FileLock lock=channel.tryLock()) {
+   if(lock==null) throw new IllegalStateException("Profile is already in use");
+   System.out.println("PROFILE="+home.toAbsolutePath().normalize());
+   System.out.flush();
+   System.in.read();
+  }
+ }
+}
+'''
+
+
+class InstanceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.fixture_dir = tempfile.TemporaryDirectory(prefix='dw3-instance-fixture-')
+        cls.addClassCleanup(cls.fixture_dir.cleanup)
+        source = Path(cls.fixture_dir.name) / 'dw/client/ClientMain.java'
+        source.parent.mkdir(parents=True)
+        source.write_text(FIXTURE)
+        subprocess.run(['javac', '--release', '17', '-d', cls.fixture_dir.name, str(source)], check=True)
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix='dw3-instance-test-')
+        self.addCleanup(temporary.cleanup)
+        self.home = Path(temporary.name) / '.linux-home'
+
+    def start(self, legacy=False):
+        main = 'dw.client.ClientMain' if legacy else 'dw3.linux.DesktopLauncher'
+        process = subprocess.Popen(
+            [str(JAVA), f'-Duser.home={self.home}', '-cp',
+             f'{self.fixture_dir.name}:{BRIDGE}', main],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.addCleanup(self.close_process, process)
+        selector = selectors.DefaultSelector()
+        selector.register(process.stdout, selectors.EVENT_READ)
+        try:
+            while selector.select(timeout=5):
+                line = process.stdout.readline()
+                if line.startswith('PROFILE='):
+                    return process, Path(line.removeprefix('PROFILE=').strip())
+                if not line:
+                    break
+        finally:
+            selector.close()
+        self.stop(process)
+        error = process.stderr.read()
+        self.fail(f'{main} did not acquire a usable profile: {error}')
+
+    @staticmethod
+    def close_process(process):
+        InstanceTests.stop(process)
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream is not None and not stream.closed:
+                stream.close()
+
+    @staticmethod
+    def stop(process):
+        if process.poll() is None:
+            process.stdin.close()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+
+    def test_two_windows_use_separate_profiles_and_reuse_released_primary(self):
+        first, first_home = self.start()
+        second, second_home = self.start()
+        self.assertEqual(first_home, self.home)
+        self.assertNotEqual(first_home, second_home)
+        self.assertIsNone(first.poll())
+        self.assertIsNone(second.poll())
+        self.stop(first)
+        third, third_home = self.start()
+        self.assertEqual(third_home, self.home)
+        self.assertIsNone(second.poll())
+        self.assertIsNone(third.poll())
+
+    def test_existing_game_lock_preserves_the_running_window(self):
+        legacy, legacy_home = self.start(legacy=True)
+        new, new_home = self.start()
+        self.assertEqual(legacy_home, self.home)
+        self.assertNotEqual(new_home, legacy_home)
+        self.assertIsNone(legacy.poll())
+        self.assertIsNone(new.poll())
+
+    def test_simultaneous_launches_do_not_share_profiles(self):
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            processes = list(pool.map(lambda _: self.start(), range(4)))
+        self.assertEqual(len({home for _, home in processes}), 4)
+        self.assertTrue(all(process.poll() is None for process, _ in processes))
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)
+```
+
 ## Appendix B. Document Verification
 
 The source files were extracted from this Markdown document into a new temporary directory.
@@ -919,6 +1182,14 @@ The agent independently verified native startup and the login screen.
 The gameplay result is user-reported evidence.
 Do not treat it as an account test by the receiving AI.
 Repeat the necessary checks for a different computer or game version.
+
+### B.2 Multi-Window Verification
+
+All three JVM profile regression checks passed.
+The graphical test kept two real clients open with different native game locks.
+Both windows displayed the complete login interface.
+The user then confirmed that multiple windows work.
+The bootstrap leaves the original game code and asset library instructions unchanged.
 
 ## Appendix C. Source References
 
