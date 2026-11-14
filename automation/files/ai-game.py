@@ -359,7 +359,11 @@ def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=Tru
             if state.get('movement_ready') is False:reason='world_input_blocked';break
             planning_state=state
             if local_map:
-                if interaction_target is not None and math.dist((state['x'],state['y']),interaction_target)<24:
+                inn_target=next((npc for npc in state.get('nearby_inns',[]) if (npc.get('x'),npc.get('y'))==interaction_target),None)
+                in_range=(bool(inn_target.get('interaction_facings')) or inn_target.get('can_interact') is True
+                          if inn_target and 'interaction_facings' in inn_target else
+                          interaction_target is not None and math.dist((state['x'],state['y']),interaction_target)<24)
+                if interaction_target is not None and in_range:
                     reason='interaction_required';break
                 if interaction_target is None and math.dist((state['x'],state['y']),destination)<8 and not cross_map:
                     reason='destination_reached';break

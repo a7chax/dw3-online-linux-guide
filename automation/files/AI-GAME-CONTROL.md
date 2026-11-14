@@ -4,6 +4,16 @@ This local controller uses the Linux Java game client. It reads the game's actua
 
 Use [README-AUTOPLAY.md](README-AUTOPLAY.md) for the short start/stop procedure. Install the locked Python environment from this directory with `uv sync --locked`; run Python commands through `uv run --locked`. The lock pins Pillow 12.1.1. Java and the existing X11 desktop tools are still required by the game and window controls.
 
+
+## Automatic inn recovery
+
+`uv run --locked automation.py` also watches the complete party, including reserves. If any Digimon has HP zero, recovery takes priority over quest walking after active battles have been handled. Unknown party telemetry waits. The controller selects the nearest estimated reachable inn from bundled world-map hints and collision paths; it does not choose the cheapest inn. Locked or unusable routes can pause recovery.
+
+At the inn it advances a catalog-matched innkeeper greeting, waits for the genuine inn offer, checks the server-provided BIT price against the wallet, and confirms the selected stay option once with normal Space. Insufficient BIT or an unconfirmed revival pauses instead of repeating purchases. Quest control resumes only after every party member has HP above zero, the inn UI has closed, and world movement is ready. No revival item, cash purchase or direct HP write is used. Inspect `inn-recovery.json` and the supervisor state/events for progress and pause reasons.
+
+A live Forest Inn stay was verified: the server charged 1,520 BIT (52,435 → 50,915; Cash remained zero), Agumon, Palmon and Renamon ended at HP 2,462, 1,202 and 2,002 respectively, and quest control resumed. The initial innkeeper approach was assisted after a distance/facing loop; subsequent greeting pages, genuine offer, payment and revival ran through automation. The approach now uses the client's exact interaction/facing predicate with regression fixtures. A complete unassisted travel-to-revival loop has not yet been verified.
+
+
 ## Start everything with one command
 
 After installing the current source kit beside the original game files, run:

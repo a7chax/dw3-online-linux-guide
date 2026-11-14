@@ -59,6 +59,16 @@ Normal operation is deterministic Python without AI calls. The optional `--repai
 
 After an observed battle ends with empty enabled GPS and `has_reply: false`, recovery refreshes GPS immediately, waits two seconds for a reply, then may use a cached observed endpoint only for unchanged PID/map/quest chapter/step/target. It validates a local atlas path, preserves NPC stand-off/talking and bounded exit crossing, and never replays another map's route. Check `post_battle_recovery`, `cached_route_available`, and the state/event reasons. The session `autoplay-route-cache.json` persists the validated route and pending-battle marker across supervisor restarts; a new game/map/quest identity invalidates it. Focus loss pauses recovery only without background capability. Verify actual position/map movement after recovery instead of treating a refresh key as success.
 
+
+## Automatic inn recovery
+
+`uv run --locked automation.py` also watches the complete party, including reserves. If any Digimon has HP zero, recovery takes priority over quest walking after active battles have been handled. Unknown party telemetry waits. The controller selects the nearest estimated reachable inn from bundled world-map hints and collision paths; it does not choose the cheapest inn. Locked or unusable routes can pause recovery.
+
+At the inn it advances a catalog-matched innkeeper greeting, waits for the genuine inn offer, checks the server-provided BIT price against the wallet, and confirms the selected stay option once with normal Space. Insufficient BIT or an unconfirmed revival pauses instead of repeating purchases. Quest control resumes only after every party member has HP above zero, the inn UI has closed, and world movement is ready. No revival item, cash purchase or direct HP write is used. Inspect `inn-recovery.json` and the supervisor state/events for progress and pause reasons.
+
+A live Forest Inn stay was verified: the server charged 1,520 BIT (52,435 → 50,915; Cash remained zero), Agumon, Palmon and Renamon ended at HP 2,462, 1,202 and 2,002 respectively, and quest control resumed. The initial innkeeper approach was assisted after a distance/facing loop; subsequent greeting pages, genuine offer, payment and revival ran through automation. The approach now uses the client's exact interaction/facing predicate with regression fixtures. A complete unassisted travel-to-revival loop has not yet been verified.
+
+
 ## Choose the right movement mode
 
 | Task | Command |

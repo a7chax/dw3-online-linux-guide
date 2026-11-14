@@ -18,6 +18,10 @@ public final class ControlBridge implements AutoCloseable {
     private static final String[] MOVEMENT_DIRECTIONS={
         "up","down","left","right","up_left","up_right","down_left","down_right"
     };
+    private static final java.util.Set<String> INN_MAPS=java.util.Set.of(
+        "s235","s236","s360","s361","s425","s426","s470","s471","s505","s506",
+        "s560","s561","s650","s651","s660","s661","s700","s701","s750","s760",
+        "s761","s928","s946","s957","s981");
     private final Path path;
     private final ServerSocketChannel server;
     private final Thread thread;
@@ -212,6 +216,7 @@ public final class ControlBridge implements AutoCloseable {
         output.add("native_key_input",nativeKeys);output.addProperty("native_click_input",true);
         output.addProperty("native_background_input",backgroundWindow!=null);
         output.addProperty("native_capture",true);
+        output.addProperty("native_inn_recovery",true);
         output.add("window_focused",windowAttribute(0x00020001));
         output.add("window_minimized",windowAttribute(0x00020002));
         output.addProperty("movement_ready","world".equals(output.get("phase").getAsString())
@@ -236,6 +241,12 @@ public final class ControlBridge implements AutoCloseable {
             }
         }
         if(current!=null && current.getClass().getName().equals("aj")) {
+            output.add("party",partySnapshot(current));
+            output.add("wallet",walletSnapshot(current));
+            output.add("inn",innSnapshot(current));
+            String map=output.has("map") && !output.get("map").isJsonNull()?output.get("map").getAsString():null;
+            JsonObject inns=nearbyInnsSnapshot(current,map);
+            output.add("nearby_inns",inns.get("npcs"));output.add("nearby_inns_complete",inns.get("telemetry_complete"));
             JsonObject dialogue=dialogueSnapshot(current);
             if(dialogue!=null)output.add("dialogue",dialogue);
             JsonObject story=storySnapshot(current);
@@ -405,6 +416,138 @@ public final class ControlBridge implements AutoCloseable {
             throw new IllegalStateException("Game process changed before UI input");
         guardProcess(request);
         return snapshot;
+    }
+    private static JsonObject nearbyInnsSnapshot(Object current,String map) {
+        JsonObject output=new JsonObject();JsonArray npcs=new JsonArray();
+        output.add("npcs",npcs);output.addProperty("telemetry_complete",false);
+        if(map==null)return output;
+        // These maps also bundle quest NPC121 with the same sprite. Expose
+        // candidates without assigning an inn identity; only an actual server
+        // inn offer can verify that a normal interaction reached the service.
+        boolean ambiguous=map.equals("s470") || map.equals("s471");
+        try {
+            java.util.List<?> live=(java.util.List<?>)get(current,"Y");boolean complete=true;
+            if(INN_MAPS.contains(map))for(Object npc:live) {
+                try {
+                    // bg.a is the sprite key; bg.g is the server's current
+                    // interaction ID used by aj.p(), not the bundled NPC ID.
+                    int interaction=((Number)get(npc,"g")).intValue();
+                    if(!"p039tail".equals(get(npc,"a")) || interaction==-1)continue;
+                    JsonObject row=new JsonObject();row.addProperty("map",map);
+                    if(ambiguous) {
+                        row.add("logical_id",JsonNull.INSTANCE);row.addProperty("inn_candidate",true);
+                        row.addProperty("source","inn_sprite_candidate_requires_offer");
+                    }else {
+                        row.addProperty("logical_id",20);row.addProperty("source","bundled_inn_catalog");
+                    }
+                    row.addProperty("interaction_id",interaction);
+                    row.addProperty("entity_id",((Number)get(npc,"b")).intValue());
+                    int x=((Number)get(npc,"c")).intValue(),y=((Number)get(npc,"d")).intValue();
+                    row.addProperty("x",x);row.addProperty("y",y);
+                    int radius=((Number)get(npc,"f")).intValue();
+                    int playerX=(int)Math.floor(((Number)get(current,"ax")).doubleValue());
+                    int playerY=(int)Math.floor(((Number)get(current,"ay")).doubleValue());
+                    int facing=((Number)get(current,"az")).intValue();
+                    // Exact pure hit test used by aj.p() before normal talk.
+                    // It checks a facing-directed segment against the NPC's
+                    // rectangular interaction area, not a fixed radial range.
+                    Method predicate=Class.forName("bF").getMethod("a",int.class,int.class,int.class,int.class,int.class,int.class);
+                    JsonArray facings=new JsonArray();
+                    for(int candidate=0;candidate<8;candidate++)
+                        if((Boolean)predicate.invoke(null,playerX,playerY,candidate,x,y,radius))facings.add(candidate);
+                    row.addProperty("interaction_radius",radius);row.add("interaction_facings",facings);
+                    row.addProperty("can_interact",(Boolean)predicate.invoke(null,playerX,playerY,facing,x,y,radius));
+                    npcs.add(row);
+                }catch(Exception unavailable){complete=false;}
+            }
+            output.addProperty("telemetry_complete",complete);
+        }catch(Exception unavailable){/* Missing live NPCs never invent coordinates. */}
+        return output;
+    }
+    private static JsonObject partySnapshot(Object current) {
+        JsonObject output=new JsonObject();JsonArray members=new JsonArray();
+        output.addProperty("source","server_party_snapshot");output.addProperty("telemetry_complete",false);
+        output.add("count",JsonNull.INSTANCE);output.add("any_fainted",JsonNull.INSTANCE);output.add("members",members);
+        try {
+            Object snapshot=get(current,"bu");if(snapshot==null)return output;
+            java.util.List<?> party=(java.util.List<?>)get(snapshot,"d");
+            boolean complete=true,anyFainted=false;int slot=0;
+            for(Object member:party) {
+                JsonObject row=new JsonObject();row.addProperty("slot",slot++);row.addProperty("telemetry_complete",false);
+                for(String field:new String[]{"id","name","hp","max_hp","fainted"})row.add(field,JsonNull.INSTANCE);
+                try {
+                    // bI.bm is the complete party row used by G's party menu:
+                    // a=Digimon ID, e=current HP, g=bw stats whose a=max HP.
+                    int id=((Number)get(member,"a")).intValue(),hp=((Number)get(member,"e")).intValue();
+                    int maximum=((Number)get(get(member,"g"),"a")).intValue();
+                    row.addProperty("id",id);row.addProperty("hp",hp);row.addProperty("max_hp",maximum);
+                    String name=partyName(current,id);if(name!=null)row.addProperty("name",name);
+                    if(hp<0 || maximum<=0 || hp>maximum)complete=false;
+                    else {
+                        row.addProperty("fainted",hp==0);row.addProperty("telemetry_complete",true);
+                        anyFainted|=hp==0;
+                    }
+                }catch(Exception unavailable){complete=false;}
+                members.add(row);
+            }
+            output.addProperty("count",members.size());output.addProperty("telemetry_complete",complete);
+            if(complete)output.addProperty("any_fainted",anyFainted);
+        }catch(Exception unavailable){/* Unknown party never means all healthy. */}
+        return output;
+    }
+    private static String partyName(Object current,int id) {
+        try {
+            Object game=get(current,"M");
+            // F.g resolves nicknames before species names. Read only existing
+            // caches, never call F.b/F.g (which may lazily load asset files).
+            for(String field:new String[]{"x","H"}) {
+                Object names=get(game,field);
+                if(names instanceof java.util.Map<?,?> map) {
+                    Object name=map.get(id);
+                    if(name instanceof String text && !text.isEmpty())return text;
+                }
+            }
+        }catch(Exception unavailable){/* An uncached name remains unknown. */}
+        return null;
+    }
+    private static JsonObject walletSnapshot(Object current) {
+        JsonObject output=new JsonObject();output.addProperty("telemetry_complete",false);
+        output.add("bits",JsonNull.INSTANCE);output.add("cash",JsonNull.INSTANCE);
+        try {
+            Object wallet=get(current,"bt");
+            int bits=((Number)get(wallet,"a")).intValue(),cash=((Number)get(wallet,"b")).intValue();
+            if(bits<0 || cash<0)return output;
+            // Original aj.i(P) and G inventory footer label these BIT / Cash.
+            output.addProperty("bits",bits);output.addProperty("cash",cash);output.addProperty("telemetry_complete",true);
+        }catch(Exception unavailable){/* Optional wallet fields must not break status. */}
+        return output;
+    }
+    private static JsonObject innSnapshot(Object current) {
+        JsonObject output=new JsonObject();output.addProperty("active",false);
+        output.addProperty("telemetry_complete",false);output.addProperty("can_confirm",false);output.addProperty("submitted",false);
+        for(String field:new String[]{"state","selected_option","cost_bits","party_count","name_index"})output.add(field,JsonNull.INSTANCE);
+        try {
+            Object inn=get(current,"bz");
+            if(inn==null){output.addProperty("telemetry_complete",true);return output;}
+            output.addProperty("active",true);
+            // U$a's static initializer assigns these exact ordinals to its
+            // a..e fields. Runtime Enum.name strings are separately obfuscated.
+            String state=switch(((Enum<?>)get(inn,"d")).ordinal()) {
+                case 0->"offer";case 1->"submitted";case 2->"rejected";
+                case 3->"resting";case 4->"closed";default->throw new IllegalStateException("Unknown inn state");
+            };
+            Object offer=get(inn,"c");int selected=((Number)get(inn,"e")).intValue();
+            int cost=((Number)get(offer,"d")).intValue(),count=((Number)get(offer,"c")).intValue(),name=((Number)get(offer,"a")).intValue();
+            output.addProperty("state",state);output.addProperty("selected_option",selected);
+            output.addProperty("cost_bits",cost);output.addProperty("party_count",count);output.addProperty("name_index",name);
+            if(cost<0 || count<0 || selected<0 || selected>1)return output;
+            output.addProperty("active",!state.equals("closed"));output.addProperty("telemetry_complete",true);
+            output.addProperty("submitted",state.equals("submitted") || state.equals("resting"));
+            JsonObject wallet=walletSnapshot(current);
+            output.addProperty("can_confirm",state.equals("offer") && selected==0
+                    && wallet.get("telemetry_complete").getAsBoolean() && wallet.get("bits").getAsInt()>=cost);
+        }catch(Exception unavailable){/* Incomplete inn state never authorizes payment. */}
+        return output;
     }
     private static void guardProcess(JsonObject request) {
         if(request.has("expected_pid") && request.get("expected_pid").getAsLong()!=ProcessHandle.current().pid())

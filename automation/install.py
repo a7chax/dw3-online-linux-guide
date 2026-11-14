@@ -13,6 +13,7 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 ROOT_FILES = {
     'automation.py', 'ai-game.py', 'autoplay.py', 'codex_repair.py', 'motion_watch.py', 'world_map.py',
+    'inn_recovery.py', 'inn_routes.py',
     'quest_catalog.py', 'game-control.py', 'login-ai-game.py', 'play-linux.sh',
     'start-ai-game.sh', 'print-game-state.sh', 'pyproject.toml', 'uv.lock',
     '.env.example', '.gitignore', 'README-AUTOPLAY.md', 'AI-GAME-CONTROL.md',
@@ -30,7 +31,7 @@ def relative_path(value):
     if any(part.startswith('.env') and part != '.env.example' for part in path.parts):
         raise ValueError('Private environment files cannot be installed.')
     allowed = (value in ROOT_FILES or value == 'scripts/export-quest-text.py'
-               or value == 'docs/autoplay-design.md'
+               or value in {'docs/autoplay-design.md', 'docs/inn-routing-findings.md'}
                or value == 'skills/dw3-linux-control/agents/openai.yaml'
                or (value.startswith('skills/dw3-linux-control/') and path.suffix == '.md')
                or (value.startswith('linux/native/') and path.suffix in {'.py', '.java', '.c', '.sh'}))

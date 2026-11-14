@@ -88,6 +88,31 @@ class AutoplayTests(unittest.TestCase):
         self.assertFalse(report['active']);self.assertEqual(report['reason'],'max_cycles')
         self.assertEqual(report['game_pid'],123)
 
+    def test_default_automation_prioritizes_inn_for_fainted_reserve(self):
+        from linux.native.tests.test_inn_recovery import state,Router
+        health=state();self.state.update({k:health[k] for k in ('party','wallet','inn','native_inn_recovery')})
+        router=Router();self.supervisor.inn_recovery.router_factory=lambda:router
+        self.supervisor.run(max_cycles=1)
+        self.assertEqual(self.game.actions,[('follow',{'seconds':12,'destination':(50,60),'cross_map':True})])
+        self.assertTrue(self.supervisor.inn_recovery.pending)
+
+    def test_inn_offer_uses_normal_space_only_with_affordable_stay(self):
+        from linux.native.tests.test_inn_recovery import state
+        health=state();self.state.update({k:health[k] for k in ('party','wallet','native_inn_recovery')})
+        self.state['movement_ready']=False
+        self.state['inn']={'active':True,'telemetry_complete':True,'state':'offer','cost_bits':50,
+                           'selected_option':0,'can_confirm':True,'submitted':False}
+        self.supervisor.run(max_cycles=1)
+        self.assertEqual(self.game.actions,[('key','space')])
+        self.assertTrue(self.supervisor.inn_recovery.report()['stay_sent'])
+
+    def test_popup_closer_does_not_cancel_an_active_inn_offer(self):
+        self.state['inn']={'active':True,'state':'offer'};self.supervisor.state=copy.deepcopy(self.state)
+        self.game.ROOT=self.session;template=self.session/'linux/ui/popup-close.png'
+        template.parent.mkdir(parents=True);template.write_bytes(b'fixture')
+        with patch.object(self.game,'request',side_effect=AssertionError('An inn offer must not enter popup dismissal')):
+            self.assertFalse(self.supervisor.close_known_popup())
+
     def test_unavailable_local_route_uses_recovery_backoff_without_repair(self):
         signature=self.supervisor.recovery_signature(self.state)
         self.supervisor.pending_recovery=signature

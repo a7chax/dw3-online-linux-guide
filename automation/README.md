@@ -110,6 +110,16 @@ Exported `linux/world/` and `linux/quest-catalog/` files contain data from your 
 
 The supervisor checks a locally supplied close template before movement and at most once every two seconds, sends a guarded game-only click, and verifies marker disappearance before clearing navigation backoff. Missing templates skip automatic detection. Unknown dialogs and story choices are not automatically recognized.
 
+
+## Automatic inn recovery
+
+`uv run --locked automation.py` also watches the complete party, including reserves. If any Digimon has HP zero, recovery takes priority over quest walking after active battles have been handled. Unknown party telemetry waits. The controller selects the nearest estimated reachable inn from bundled world-map hints and collision paths; it does not choose the cheapest inn. Locked or unusable routes can pause recovery.
+
+At the inn it advances a catalog-matched innkeeper greeting, waits for the genuine inn offer, checks the server-provided BIT price against the wallet, and confirms the selected stay option once with normal Space. Insufficient BIT or an unconfirmed revival pauses instead of repeating purchases. Quest control resumes only after every party member has HP above zero, the inn UI has closed, and world movement is ready. No revival item, cash purchase or direct HP write is used. Inspect `inn-recovery.json` and the supervisor state/events for progress and pause reasons.
+
+A live Forest Inn stay was verified: the server charged 1,520 BIT (52,435 → 50,915; Cash remained zero), Agumon, Palmon and Renamon ended at HP 2,462, 1,202 and 2,002 respectively, and quest control resumed. The initial innkeeper approach was assisted after a distance/facing loop; subsequent greeting pages, genuine offer, payment and revival ran through automation. The approach now uses the client's exact interaction/facing predicate with regression fixtures. A complete unassisted travel-to-revival loop has not yet been verified.
+
+
 ## Tests
 
 Installer tests run without game files or a desktop:
@@ -124,7 +134,7 @@ After installing into your own prepared game, building the adapter/runtime, and 
 uv run --locked python -B -m unittest discover -s linux/native/tests -p 'test_*.py' -q
 ```
 
-The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The NPC recovery revision passed 193 local automation tests and 8 installer tests. The four-cycle background check above verified popup closure and movement while minimized. Earlier startup recovery checks moved from map `s205` to `s330` and recovered from an intentionally invalid X11 capture. Live results belong to the original inspected installation; verify your own setup separately.
+The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The automatic inn recovery revision passed 220 local automation tests and 8 installer tests. The live inn stay above verified the normal BIT fee, full party revival and resumed quest control; its first innkeeper interaction was assisted before correcting the approach predicate. The four-cycle background check verified popup closure and movement while minimized. Live results belong to the original inspected installation; verify your own setup separately.
 
 ## Maintainers
 

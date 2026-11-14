@@ -48,3 +48,12 @@ Integrated entry-point verification: `uv run --locked automation.py --max-cycles
 Startup recovery was also verified live: the two-cycle one-command entry moved from the recorded stuck position near `(776.5, 297.66)` on `s205` to `(1209, 472.75)` on `s330`, with two actions and two progress events and no AI game input. A deliberately oversized X11 capture error was trapped, and the next capture succeeded. These checks cover the observed resize/collision-margin failures, not every route or objective.
 
 A real Codex worker proposed accepted missing-route handling. Its verification was stopped, so the complete automatic repair/restart chain remains unverified; a stop during verification is `repair_interrupted`, not a successful verified repair or a worker failure.
+
+
+## Automatic inn recovery
+
+`uv run --locked automation.py` also watches the complete party, including reserves. If any Digimon has HP zero, recovery takes priority over quest walking after active battles have been handled. Unknown party telemetry waits. The controller selects the nearest estimated reachable inn from bundled world-map hints and collision paths; it does not choose the cheapest inn. Locked or unusable routes can pause recovery.
+
+At the inn it advances a catalog-matched innkeeper greeting, waits for the genuine inn offer, checks the server-provided BIT price against the wallet, and confirms the selected stay option once with normal Space. Insufficient BIT or an unconfirmed revival pauses instead of repeating purchases. Quest control resumes only after every party member has HP above zero, the inn UI has closed, and world movement is ready. No revival item, cash purchase or direct HP write is used. Inspect `inn-recovery.json` and the supervisor state/events for progress and pause reasons.
+
+A live Forest Inn stay was verified: the server charged 1,520 BIT (52,435 → 50,915; Cash remained zero), Agumon, Palmon and Renamon ended at HP 2,462, 1,202 and 2,002 respectively, and quest control resumed. The initial innkeeper approach was assisted after a distance/facing loop; subsequent greeting pages, genuine offer, payment and revival ran through automation. The approach now uses the client's exact interaction/facing predicate with regression fixtures. A complete unassisted travel-to-revival loop has not yet been verified.

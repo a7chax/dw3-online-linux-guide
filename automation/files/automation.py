@@ -16,7 +16,8 @@ ROOT=Path(__file__).resolve().parent
 def native_input(state):
     return bool(state and {'space','enter','g','x'}<=set(state.get('native_key_input') or ())
                 and state.get('native_click_input') is True
-                and state.get('native_background_input') is True and state.get('native_capture') is True)
+                and state.get('native_background_input') is True and state.get('native_capture') is True
+                and state.get('native_inn_recovery') is True)
 
 
 def controller_running(session):

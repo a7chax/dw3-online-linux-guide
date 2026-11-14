@@ -12,6 +12,20 @@ class Window:
  def focused(self):return True
  def close(self):pass
 class ModeTests(unittest.TestCase):
+ def test_inn_approach_stops_when_original_interaction_check_is_ready(self):
+  import world_map
+  state=dict(phase='world',pid=123,map='fixture',x=357.35846,y=338.4521,facing=5,
+             time=datetime.now(timezone.utc).isoformat(),movement_ready=True,
+             nearby_inns=[dict(map='fixture',x=345,y=308,can_interact=True,interaction_facings=[5])],
+             trace=dict(enabled=True,route_type=1,steps_remaining=7,points=[[400,350]]))
+  class Atlas:
+   def __init__(self,map_id):pass
+   def path(self,start,goal):return [list(start),list(goal)]
+  with tempfile.TemporaryDirectory() as td,patch.object(game,'LATEST',Path(td)),\
+       patch.object(game,'request',return_value=state),patch.object(game,'move',side_effect=AssertionError('Inn is already in interaction range')) as move,\
+       patch('game_control.GameWindow',Window),patch.object(world_map,'WorldMap',Atlas):
+   report=game.follow_trace(5,destination=(350,327),interaction_target=(345,308))
+  move.assert_not_called();self.assertEqual(report['reason'],'interaction_required')
  def test_npc_approach_does_not_claim_arrival_outside_talking_range(self):
   import world_map
   state=dict(phase='world',pid=123,map='fixture',x=100.,y=100.,facing=6,

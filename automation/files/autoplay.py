@@ -38,7 +38,8 @@ def route_endpoint(state):
 def popup_modal_context(state):
     fields={'battle':('active','transitioning','submitted','can_advance'),
             'story':('active','awaiting_choice','choice_count','page_index','can_advance'),
-            'dialogue':('entity_id','page_index','page_count','can_advance','choice_count')}
+            'dialogue':('entity_id','page_index','page_count','can_advance','choice_count'),
+            'inn':('active','state','selected_option','cost_bits','submitted')}
     return tuple(tuple((state.get(kind) or {}).get(key) for key in keys) for kind,keys in fields.items())
 
 
@@ -138,6 +139,8 @@ class Supervisor:
         self.battle_space=bool(battle_space)
         self.close_popups=bool(close_popups);self.last_popup_check=-math.inf
         self.repair_manager=repair_manager
+        from inn_recovery import InnRecovery
+        self.inn_recovery=InnRecovery(self.session,clock=self.clock);self.inn_decision=None
         if repair_with_codex and self.repair_manager is None:
             from codex_repair import CodexRepair
             self.repair_manager=CodexRepair(self.session)
@@ -252,7 +255,7 @@ class Supervisor:
 
     def close_known_popup(self):
         root=getattr(self.game,'ROOT',None)
-        if (not self.close_popups or root is None or self.clock()-self.last_popup_check<2
+        if ((self.state.get('inn') or {}).get('active') or not self.close_popups or root is None or self.clock()-self.last_popup_check<2
                 or not (Path(root)/'linux/ui/popup-close.png').exists()):return False
         self.last_popup_check=self.clock()
         with self.game.navigation_lease():
@@ -298,6 +301,7 @@ class Supervisor:
             'cycles':self.cycles,'actions':self.actions,'progress_events':self.progress_events,
             'battle_space_enabled':self.battle_space,'codex_repair_enabled':self.repair_manager is not None,
             'background_input_enabled':self.state.get('native_background_input') is True,
+            'inn_recovery':self.inn_recovery.report(),
             'cached_route_available':self.cached_route is not None,'post_battle_recovery':self.post_battle_since is not None,
             'no_progress_cycles':self.no_progress,'wait_seconds':round(wait_seconds,2),**extra}
         temporary=self.session/'autoplay-state.tmp';temporary.write_text(json.dumps(report,indent=2)+'\n')
@@ -373,7 +377,12 @@ class Supervisor:
             if owner.game._quest_step(fresh)!=expected_quest:raise InputPaused('quest_changed')
             battle=fresh.get('battle') or {};story=fresh.get('story') or {}
             if key=='space':
-                if action=='space':
+                if action in ('inn_stay','inn_interact'):
+                    decision=owner.inn_recovery.decide(fresh)
+                    if not decision or decision.get('action')!=action:raise InputPaused('inn_state_changed')
+                    if action=='inn_stay' and decision.get('cost_bits')!=owner.inn_decision.get('cost_bits'):
+                        raise InputPaused('inn_price_changed')
+                elif action=='space':
                     modal=battle if expected_modal=='battle' else story
                     ready=(modal.get('active') and modal.get('telemetry_complete') is True
                            and modal.get('can_advance') is True and not modal.get('submitted'))
@@ -456,6 +465,28 @@ class Supervisor:
                 self.blocked_interactions[signature]=self.clock()
             return {'reason':'interaction_alignment_attempted','current':after}
 
+    def perform_inn_action(self,action):
+        expected_map=self.state['map']
+        fresh=self.game.request('status');self.check_input(fresh,expected_map)
+        decision=self.inn_recovery.decide(fresh)
+        if not decision or decision.get('action')!=action:raise InputPaused('inn_state_changed')
+        self.inn_decision=decision
+        if action=='inn_travel':
+            goal=tuple(decision['destination']);options={}
+            if decision.get('npc'):
+                from world_map import NoRouteError,WorldMap
+                try:destination=WorldMap(expected_map).interaction_destination((fresh['x'],fresh['y']),goal)
+                except NoRouteError:return {'reason':'local_route_unavailable','current':fresh}
+                options['interaction_target']=goal;goal=destination
+            return self.game.follow_trace(seconds=12,destination=goal,cross_map=decision['cross_map'],**options)
+        with self.game.navigation_lease():
+            if action=='inn_align':
+                result=self.game.move(*decision['step'],focus=False,quiet=True,expected_map=expected_map,expected_pid=self.expected_pid)
+                return {'reason':'inn_alignment_attempted','current':result['after']}
+            self.game.press_game_key(self.window,'space');self.wait(.25)
+            return {'reason':'inn_stay_submitted' if action=='inn_stay' else 'inn_interaction_attempted',
+                    'current':self.game.request('status')}
+
     def cycle(self):
         self.cycles+=1;self.check_stop()
         try:self.state=self.game.request('status')
@@ -486,8 +517,15 @@ class Supervisor:
             self.no_progress=0;self.cooldown=0
         self.last_seen=current
         planning=self.routing_state(self.state)
-        action,reason=policy(planning,self.quest,self.scene_targets,self.boundary_ready(self.state),self.battle_space)
-        if planning is not self.state and action=='follow':action='cached_recovery';reason='post_battle_cached_route'
+        self.inn_decision=self.inn_recovery.decide(self.state)
+        if self.inn_decision:
+            action,reason=self.inn_decision['action'],self.inn_decision['reason']
+            if action=='inn_recovered':
+                self.cooldown=0;self.no_progress=0;self.progress_events+=1
+                self.publish('waiting',reason,action=action);return
+        else:
+            action,reason=policy(planning,self.quest,self.scene_targets,self.boundary_ready(self.state),self.battle_space)
+            if planning is not self.state and action=='follow':action='cached_recovery';reason='post_battle_cached_route'
         now=self.clock()
         if reason=='empty_gps_route':
             if self.empty_since is None:self.empty_since=now
@@ -499,14 +537,15 @@ class Supervisor:
         if action is None:
             self.maybe_repair(reason)
             self.pause(reason);return
-        if now<self.cooldown:self.pause('no_progress_backoff',min(1,self.cooldown-now));return
+        if now<self.cooldown and not action.startswith('inn_'):self.pause('no_progress_backoff',min(1,self.cooldown-now));return
         signature=self.recovery_signature(self.state)
         if action=='follow' and self.pending_recovery==signature:
             action='local_recovery';self.pending_recovery=None
         self.publish('acting',reason,action=action)
         try:
             with self.guarded_actions(action),(self.session/'autoplay-actions.log').open('a') as log,redirect_stdout(log),redirect_stderr(log):
-                if action=='align':result=self.align_interaction()
+                if action.startswith('inn_'):result=self.perform_inn_action(action)
+                elif action=='align':result=self.align_interaction()
                 elif action=='talk':result=self.game.talk(seconds=12,max_pages=6)
                 elif action=='space':result=self.game.scene(seconds=1,max_presses=1)
                 elif action=='scene':result=self.game.scene(seconds=8,max_presses=4)
@@ -529,6 +568,7 @@ class Supervisor:
             self.maybe_repair('action_failed',type(error).__name__)
             self.wait(1);return
         self.actions+=1
+        if action.startswith('inn_'):self.inn_recovery.note_result(self.inn_decision,result)
         after=result.get('current',self.state);result_reason=result.get('reason','unknown_result')
         self.remember_route(after)
         interrupted=bool((after.get('battle') or {}).get('active') or (after.get('story') or {}).get('active'))

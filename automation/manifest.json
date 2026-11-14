@@ -13,7 +13,7 @@
     },
     {
       "path": "AI-GAME-CONTROL.md",
-      "sha256": "0fa2efabdf4c5daab2396bbf5e7de6198f8d035b07e0d0f9bd3b53b351f2b19c",
+      "sha256": "cc2eeeb35e61cbcf99ff38467572d9708b048e4d513bd3a55c9abbabeddd533d",
       "mode": 420
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "2d1ed8ed2c3e15cf9c4cc919c70b539b9cc510f8421be8cdbb765b82ef2d374a",
+      "sha256": "481358d7d8b5b2107e950473f959eded5011af80674f46e4cecf02e3f0f5ffdd",
       "mode": 420
     },
     {
@@ -53,17 +53,17 @@
     },
     {
       "path": "ai-game.py",
-      "sha256": "09b7a10ba27936498553686911279bb4b892ec71befb16e479ae0f5128236f90",
+      "sha256": "095722e21567704fb4134563db7bf7e4b544fc63c67a7da6f85fb7ff6e4282c4",
       "mode": 493
     },
     {
       "path": "automation.py",
-      "sha256": "736629adf6dd87627558075327529b40c8fb29494111930b97c618ccddbbe286",
+      "sha256": "f939e451c75223a35c95eeb5b62a081995b715b069e75ccb90baecc632bff1c7",
       "mode": 420
     },
     {
       "path": "autoplay.py",
-      "sha256": "ab0006ae2a9f41001f475bca5c0f1aa265ebd40dd89a459ebdfb7cb36e992690",
+      "sha256": "faf7a1ecfe4ff933705173076bccd54ebc72ed4f51640058d8cbc4290a883829",
       "mode": 420
     },
     {
@@ -77,9 +77,24 @@
       "mode": 420
     },
     {
+      "path": "docs/inn-routing-findings.md",
+      "sha256": "0f632e7c38920d4ebbca5c65bcb249be2ea425898631d68750c110f3be12c01f",
+      "mode": 420
+    },
+    {
       "path": "game-control.py",
       "sha256": "23c272d04ebfa9a9d457917e7b412f244cf611b989cbebbf0199d1143db6634b",
       "mode": 493
+    },
+    {
+      "path": "inn_recovery.py",
+      "sha256": "36a19ef57a4103d8cece44fbeda857b7804feca235178ebfa0f68793d69cceab",
+      "mode": 420
+    },
+    {
+      "path": "inn_routes.py",
+      "sha256": "794d71fe924558a8f3f691db7b99b94b99a39878f53e630bd732b37db67f76b3",
+      "mode": 420
     },
     {
       "path": "linux/native/build-executable.sh",
@@ -128,7 +143,7 @@
     },
     {
       "path": "linux/native/src/dw3/linux/ControlBridge.java",
-      "sha256": "2280e0419d286a0486a2708aba6526c8e15de7c1f3a1a66b7fbb4bca2c86a22a",
+      "sha256": "a23d21f69f5d32e9c2ac8e646a06a46cac655c4effadac49b5219811c8847eb1",
       "mode": 420
     },
     {
@@ -153,12 +168,12 @@
     },
     {
       "path": "linux/native/tests/test_automation_entry.py",
-      "sha256": "5d59174d23d8396c3ae454ca8beb319c954c781d102cc7d904cd75f78beb72ab",
+      "sha256": "207734dbb0c7df19f57890918848a1e1f8cdd68f591839c3f5aa7fc222480d0f",
       "mode": 420
     },
     {
       "path": "linux/native/tests/test_autoplay.py",
-      "sha256": "98a85192ea4402b763321128d3ec698e582c338c3a9b2f26109f063f4ae09fc0",
+      "sha256": "ed379ffe6a057512d189e496c4815648c74dcca09e2d8da9f6f252c118d6c292",
       "mode": 420
     },
     {
@@ -202,6 +217,16 @@
       "mode": 420
     },
     {
+      "path": "linux/native/tests/test_inn_recovery.py",
+      "sha256": "bc4180569430de5a6215437a2693baa4f2d6f426054fae40924d3426a28b9dd2",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_inn_routes.py",
+      "sha256": "6983fb6c47ba152c2c43e40e33393d5477e24abcd430cad28995e104271fdc14",
+      "mode": 420
+    },
+    {
       "path": "linux/native/tests/test_instances.py",
       "sha256": "0cabf18cf60ece425a5f5784f67586ca9de191d219e3dbed6778559f96f3bc81",
       "mode": 420
@@ -228,12 +253,17 @@
     },
     {
       "path": "linux/native/tests/test_navigation_modes.py",
-      "sha256": "704768fa69ff058997ed8ce21bf83e12b2b35df8986fdcfd399a41cdedbdf814",
+      "sha256": "c5531080f95adc0a14b14248929f6695802dab911f6ac7cb6d25039ec9650927",
       "mode": 420
     },
     {
       "path": "linux/native/tests/test_navigation_recovery.py",
       "sha256": "509c09e119c0b788f38348346601bf521e9aba0914558e4f8c794b48972c404b",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_party_state.py",
+      "sha256": "a21b701abb3a111d9934bc18c5b5eb4e1a1dc32e430f158eea161d12e3c4a350",
       "mode": 420
     },
     {
@@ -348,7 +378,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "601fb3eaae07ee9070b32c894de361f3a5b697fd6049ddcf5741de6cda251795",
+      "sha256": "7830630180f56ef380aa4dbf053d15092e015b5f53cc9e6bb18eb17152baa9ed",
       "mode": 420
     },
     {
@@ -358,7 +388,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "0924023d55a2e8ecbf280aa54c660aa16032f6291890894c89f43d23d4cf9473",
+      "sha256": "e5cc2be4379c1e2d5b9b6042eadda8c329a3d3265c1f1e1d27e9994a30df22c2",
       "mode": 420
     },
     {

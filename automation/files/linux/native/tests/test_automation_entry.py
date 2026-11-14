@@ -15,7 +15,7 @@ entry=importlib.util.module_from_spec(spec);spec.loader.exec_module(entry)
 
 def world():
     return {'phase':'world','pid':123,'map':'fixture','native_key_input':['space','enter','g','x'],
-            'native_click_input':True,'native_background_input':True,'native_capture':True}
+            'native_click_input':True,'native_background_input':True,'native_capture':True,'native_inn_recovery':True}
 
 class EntryTests(unittest.TestCase):
     def setUp(self):
@@ -65,6 +65,10 @@ class EntryTests(unittest.TestCase):
         self.assertEqual(self.runner.call_count,1);self.game.login.assert_called_once_with(restart=True)
     def test_foreground_only_bridge_is_upgraded_for_minimized_operation(self):
         self.game.request.return_value={**world(),'native_background_input':False}
+        self.run_entry(max_cycles=1)
+        self.assertEqual(self.runner.call_count,1);self.game.login.assert_called_once_with(restart=True)
+    def test_missing_party_inn_capability_is_upgraded_automatically(self):
+        self.game.request.return_value={**world(),'native_inn_recovery':False}
         self.run_entry(max_cycles=1)
         self.assertEqual(self.runner.call_count,1);self.game.login.assert_called_once_with(restart=True)
     def test_missing_executable_or_runtime_builds_native_launcher(self):
