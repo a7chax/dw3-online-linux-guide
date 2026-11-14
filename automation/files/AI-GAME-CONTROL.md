@@ -25,6 +25,10 @@ uv run --locked automation.py --stop
 
 ## Start and log in manually
 
+If the window opens but the character does not move, check `uv run --locked automation.py --status` and `autoplay-events.jsonl`. Restore and focus the intended game if the reason is `window_unavailable` or `focus_lost`; a window pause does not request a Codex repair. Screenshots now query actual window geometry for each capture and trap X11 errors locally. Previously a cached 1280×720 size against an actual 834×615 window caused an XGetImage error that could terminate Python.
+
+The local planner also handles a valid foot pixel that lies outside its extra body-clearance margin. It permits only a bounded 50–175-ms escape through clear foot pixels, including a 17-ms release guard, when both normal and guard landings restore full padded clearance. This is a recovery from a conservative margin, not permission to cross blocked terrain. `local_route_unavailable` is a normal bounded navigation result. A blocked cached endpoint gets a 60-second retry backoff, avoiding rapid repeated path searches. Keep dynamic obstacles and unknown exits as unresolved when no route is found.
+
 1. Open a terminal in this game directory.
 2. Run:
 
@@ -107,6 +111,8 @@ With `--repair-with-codex`, three observations of the same eligible controller f
 Codex must already be installed and authenticated. Its worker uses workspace-write sandboxing and on-request approvals with automatic approval review; an approval requirement can leave it waiting. A worker's successful exit alone is insufficient: source changes must pass the full locked regression suite before the supervisor restarts with the same pinned session and game PID. This restarts the Python supervisor, not the game. Failed repairs remain reported for inspection. Limits are one attempt per failure fingerprint, at most three workers per session, and ten minutes between workers.
 
 Read `repair-state.json` for status and `repairs/NNN-*/` for `context.json`, `report.md`, `worker.log`, and `verification.log`. The context excludes `.env`, dialogue, exception messages, and raw session logs; do not manually add secrets. A stop request also interrupts a running worker. The repair policy has fixture coverage; a genuine live failure followed by a successful autonomous repair has not yet been demonstrated.
+
+A real repair worker later proposed `NoRouteError` handling, which was reviewed and accepted for bounded `local_route_unavailable` results. A stop request interrupted verification, so that run does not establish the complete automatic repair/test/restart chain. Such a stop is recorded as `repair_interrupted`, even when the worker process exited successfully.
 
 ## Close a visible popup
 
@@ -236,4 +242,6 @@ Publication verification: the post-battle recovery update passed **133 controlle
 
 Game-local input verification: the corrected popup command removed the visible Halloween panel; its close marker disappeared in the saved after image. The new key operation changed live GPS from enabled to disabled and back to enabled. The Python input helper no longer invokes XTest, and legacy login uses the local control bridge. These checks validate game-local input; an already-open GNOME sharing dialog can be cancelled instead of granting desktop sharing.
 
-Integrated entry-point verification: `uv run --locked automation.py --max-cycles 2 --no-codex-repair` reused the logged-in world, moved into the quest target map, and aligned at its NPC. The full current suite passed **148 tests** under uv, including automatic known-popup checks before navigation and the one-command setup fixtures. The standalone source installer has eight separate passing tests.
+Integrated entry-point verification: `uv run --locked automation.py --max-cycles 2 --no-codex-repair` reused the logged-in world, moved into the quest target map, and aligned at its NPC. The full suite at that stage passed **148 tests** under uv, including automatic known-popup checks before navigation and the one-command setup fixtures. The standalone source installer has eight separate passing tests.
+
+The later startup fix was checked live with a deliberately oversized X11 capture: the error was trapped, then a subsequent capture succeeded. The one-command entry then completed two cycles from the stuck `s205` position `(776.5, 297.6646)` to `s330` near `(1209, 472.75)`, recording two actions and two progress events without AI game input. This verifies that observed capture/clearance-margin recovery; it does not establish every map connection or quest.

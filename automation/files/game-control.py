@@ -12,6 +12,8 @@ import re
 import signal
 import subprocess
 import time
+import threading
+from contextlib import contextmanager
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_STATE = ROOT / 'linux/ai-sessions/latest/state.json'
@@ -76,6 +78,20 @@ class XImage(C.Structure):
                 ('red_mask', C.c_ulong), ('green_mask', C.c_ulong), ('blue_mask', C.c_ulong)]
 
 
+class XErrorEvent(C.Structure):
+    _fields_=[('type',C.c_int),('display',C.c_void_p),('resourceid',C.c_ulong),
+              ('serial',C.c_ulong),('error_code',C.c_ubyte),
+              ('request_code',C.c_ubyte),('minor_code',C.c_ubyte)]
+
+
+XErrorHandler=C.CFUNCTYPE(C.c_int,C.c_void_p,C.POINTER(XErrorEvent))
+_X_ERROR_LOCK=threading.RLock()
+
+
+class WindowUnavailable(RuntimeError):
+    """The game window must be restored or refreshed before UI operations."""
+
+
 class GameWindow:
     def __init__(self, pid):
         self.window, self.width, self.height = find_window(pid)
@@ -99,6 +115,8 @@ class GameWindow:
             'XTranslateCoordinates': ([C.c_void_p, C.c_ulong, C.c_ulong, C.c_int, C.c_int,
                                       C.POINTER(C.c_int), C.POINTER(C.c_int), C.POINTER(C.c_ulong)], C.c_int),
             'XGetImage': ([C.c_void_p, C.c_ulong, C.c_int, C.c_int, C.c_uint, C.c_uint, C.c_ulong, C.c_int], C.POINTER(XImage)),
+            'XGetGeometry': ([C.c_void_p,C.c_ulong,C.POINTER(C.c_ulong),C.POINTER(C.c_int),C.POINTER(C.c_int),C.POINTER(C.c_uint),C.POINTER(C.c_uint),C.POINTER(C.c_uint),C.POINTER(C.c_uint)],C.c_int),
+            'XSetErrorHandler': ([C.c_void_p],C.c_void_p),
             'XDestroyImage': ([C.POINTER(XImage)], C.c_int),
         }
         for name, (arguments, result) in signatures.items():
@@ -120,6 +138,28 @@ class GameWindow:
         return window.value == self.window
 
     def focus(self):
+        with self._checked_x('Focus'):
+            self._focus_window()
+
+    @contextmanager
+    def _checked_x(self,operation):
+        # Xlib's default handler exits the whole controller on BadMatch. Keep
+        # errors local to this operation, including asynchronous server replies.
+        with _X_ERROR_LOCK:
+            errors=[]
+            @XErrorHandler
+            def error(display,event):
+                errors.append(event.contents.error_code);return 0
+            previous=self.x.XSetErrorHandler(C.cast(error,C.c_void_p))
+            try:
+                yield
+            finally:
+                self.x.XSync(self.display,0)
+                self.x.XSetErrorHandler(previous)
+            if errors:
+                raise WindowUnavailable(f'{operation} could not access the game window (X11 error {errors[-1]}). Restore the window and retry.')
+
+    def _focus_window(self):
         event = XEvent()
         event.client.type = 33
         event.client.display = self.display
@@ -220,20 +260,22 @@ class GameWindow:
 
     def screenshot(self, path):
         from PIL import Image
-        self.x.XSync(self.display, 0)
-        image = self.x.XGetImage(self.display, self.window, 0, 0, self.width, self.height, C.c_ulong(-1).value, 2)
-        if not image:
-            raise RuntimeError('The game window could not be captured.')
-        try:
-            info = image.contents
-            if info.bits_per_pixel != 32:
-                raise RuntimeError('Unsupported capture pixel format.')
-            pixels = C.string_at(info.data, info.height * info.bytes_per_line)
-            result = Image.frombytes('RGB', (info.width, info.height), pixels, 'raw', 'BGRX', info.bytes_per_line)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            result.save(path)
-        finally:
-            self.x.XDestroyImage(image)
+        with self._checked_x('Capture'):
+            root,x,y=C.c_ulong(),C.c_int(),C.c_int()
+            width,height,border,depth=C.c_uint(),C.c_uint(),C.c_uint(),C.c_uint()
+            if not self.x.XGetGeometry(self.display,self.window,C.byref(root),C.byref(x),C.byref(y),C.byref(width),C.byref(height),C.byref(border),C.byref(depth)):
+                raise WindowUnavailable('The game window is unavailable. Restore it and retry.')
+            if not width.value or not height.value:raise WindowUnavailable('The game window has no drawable area.')
+            self.width,self.height=width.value,height.value
+            image=self.x.XGetImage(self.display,self.window,0,0,self.width,self.height,C.c_ulong(-1).value,2)
+            if not image:raise WindowUnavailable('The game window could not be captured. Restore it and retry.')
+            try:
+                info=image.contents
+                if info.bits_per_pixel!=32:raise RuntimeError('Unsupported capture pixel format.')
+                pixels=C.string_at(info.data,info.height*info.bytes_per_line)
+                result=Image.frombytes('RGB',(info.width,info.height),pixels,'raw','BGRX',info.bytes_per_line)
+            finally:self.x.XDestroyImage(image)
+        path.parent.mkdir(parents=True,exist_ok=True);result.save(path)
 
 
 def main():

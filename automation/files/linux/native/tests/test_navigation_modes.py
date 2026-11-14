@@ -12,6 +12,43 @@ class Window:
  def focused(self):return True
  def close(self):pass
 class ModeTests(unittest.TestCase):
+ def test_unreachable_local_route_stops_before_window_or_input(self):
+  import world_map
+  original=world_map.WorldMap
+  for blocked_start in (True,False):
+   with self.subTest(blocked_start=blocked_start),tempfile.TemporaryDirectory() as td:
+    root=Path(td);atlas=root/'atlas';atlas.mkdir()
+    image=Image.new('L',(832,384),255)
+    if blocked_start:
+     # A blocked foot pixel cannot use the bounded margin escape.
+     image.paste(0,(0,297,832,384));goal=(700,280)
+    else:
+     image.paste(0,(740,0,746,384));goal=(700,297)
+    image.save(atlas/'mask.png')
+    (atlas/'atlas.json').write_text(json.dumps({'maps':[dict(id='s205',width=832,height=384,collision='mask.png')]}))
+    state=dict(phase='world',map='s205',x=776.5,y=297.6646,pid=98094,facing=0,
+               movement_ready=True,time=datetime.now(timezone.utc).isoformat(),
+               main_quest=dict(chapter=5,step=6,target_map='s380'),
+               trace=dict(enabled=True,route_type=1,steps_remaining=52,points=[list(goal)]))
+    with patch.object(game,'LATEST',root),patch.object(game,'request',return_value=state),\
+         patch.object(game,'move',side_effect=AssertionError('No route must send no input')) as move,\
+         patch('game_control.GameWindow',side_effect=AssertionError('No route must not open a window')) as window,\
+         patch.object(world_map,'WorldMap',side_effect=lambda id:original(id,atlas)):
+     report=game.follow_trace(5,destination=goal,cross_map=True)
+    move.assert_not_called();window.assert_not_called()
+    self.assertEqual(report['reason'],'local_route_unavailable')
+    self.assertEqual(report['bursts'],0);self.assertFalse(report['active'])
+    self.assertEqual(report['current'],state)
+    self.assertEqual(report['navigation_source'],'local_collision_atlas')
+    self.assertEqual(json.loads((root/'follow-state.json').read_text()),report)
+ def test_unexpected_planner_error_is_not_an_unavailable_route(self):
+  state=dict(phase='world',map='fixture',x=12.,y=12.,pid=1,
+             time=datetime.now(timezone.utc).isoformat(),trace={})
+  with tempfile.TemporaryDirectory() as td,patch.object(game,'LATEST',Path(td)),\
+       patch.object(game,'request',return_value=state),patch('world_map.WorldMap') as atlas,\
+       patch('game_control.GameWindow',side_effect=AssertionError('Planning failed before window access')):
+   atlas.return_value.path.side_effect=RuntimeError('Local route search exceeded its node limit.')
+   with self.assertRaisesRegex(RuntimeError,'node limit'):game.follow_trace(5,destination=(52,12))
  def test_continuous_mode_follows_map_changes_until_interaction(self):
   results=[dict(reason='map_changed',before=dict(map='a'),current=dict(map='b')),dict(reason='map_changed',before=dict(map='b'),current=dict(map='c')),dict(reason='interaction_required',before=dict(map='c'),current=dict(map='c'))]
   with tempfile.TemporaryDirectory() as td,patch.object(game,'LATEST',Path(td)),patch.object(game,'_follow_trace',side_effect=results) as run:

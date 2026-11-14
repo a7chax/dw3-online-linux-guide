@@ -11,6 +11,9 @@ from PIL import Image
 ROOT=Path(__file__).resolve().parent
 ATLAS=ROOT/'linux/world'
 
+class NoRouteError(RuntimeError):
+    """No collision-clear connection exists between the requested endpoints."""
+
 class WorldMap:
     def __init__(self,map_id,root=ATLAS):
         self.root=Path(root)
@@ -63,6 +66,35 @@ class WorldMap:
         return all(self._clear_segment((start[0]+dx,start[1]+dy),(end[0]+dx,end[1]+dy))
                    for dx,dy in ((0,0),(-3,0),(3,0),(0,-1),(0,1)))
 
+    @staticmethod
+    def _velocities(allow_diagonal=True):
+        diagonal=math.sqrt(.5)
+        velocities={'left':(-240,0),'right':(240,0),'up':(0,-120),'down':(0,120)}
+        if allow_diagonal:
+            velocities.update({'up_left':(-240*diagonal,-120*diagonal),
+                'up_right':(240*diagonal,-120*diagonal),
+                'down_left':(-240*diagonal,120*diagonal),
+                'down_right':(240*diagonal,120*diagonal)})
+        return velocities
+
+    def escape_step(self,position,goal,preferred_step=None,blocked=None,allow_diagonal=True):
+        """Leave clipped extra margins only through clear foot pixels to safe landings."""
+        position=tuple(map(float,position));goal=tuple(map(float,goal))
+        if self.walkable(*position) or not self._pixel_walkable(*map(math.floor,position)):return None
+        excluded={blocked} if isinstance(blocked,str) else set(blocked or ())
+        for milliseconds in range(50,176,25):
+            choices=[]
+            for direction,(vx,vy) in self._velocities(allow_diagonal).items():
+                if direction in excluded:continue
+                end=(position[0]+vx*milliseconds/1000,position[1]+vy*milliseconds/1000)
+                guard=(position[0]+vx*(milliseconds+17)/1000,position[1]+vy*(milliseconds+17)/1000)
+                if not (self.walkable(*end) and self.walkable(*guard) and self._clear_segment(position,guard)):continue
+                cost=math.hypot((goal[0]-end[0])/240,(goal[1]-end[1])/120)
+                step=(direction,milliseconds)
+                choices.append(((cost,step!=preferred_step),step))
+            if choices:return min(choices)[1]
+        return None
+
     def steering_step(self,position,goal,path,preferred_step=None,blocked=None,allow_diagonal=True):
         """Choose a collision-clear burst, including a frame of release margin.
 
@@ -76,6 +108,8 @@ class WorldMap:
         if route[-1]!=goal:route.append(goal)
         if not all(math.isfinite(value) for point in [position,goal,*route] for value in point):
             raise ValueError('Steering coordinates must be finite.')
+        if not self.walkable(*position):
+            return self.escape_step(position,goal,preferred_step,blocked,allow_diagonal)
         def travel(a,b):return math.hypot((a[0]-b[0])/240,(a[1]-b[1])/120)
         suffix=[0.0]*len(route)
         for index in range(len(route)-2,-1,-1):
@@ -98,13 +132,7 @@ class WorldMap:
             for cost,point in sorted(joins):
                 if self.clear(node,point):return cost
             return math.inf
-        diagonal=math.sqrt(.5)
-        velocities={'left':(-240,0),'right':(240,0),'up':(0,-120),'down':(0,120)}
-        if allow_diagonal:
-            velocities.update({'up_left':(-240*diagonal,-120*diagonal),
-                'up_right':(240*diagonal,-120*diagonal),
-                'down_left':(-240*diagonal,120*diagonal),
-                'down_right':(240*diagonal,120*diagonal)})
+        velocities=self._velocities(allow_diagonal)
         preferred_ms=preferred_step[1] if preferred_step else 100
         blocked_directions={blocked} if isinstance(blocked,str) else set(blocked or ())
         if preferred_step and preferred_step[0] in velocities and preferred_step[0] not in blocked_directions:
@@ -142,11 +170,17 @@ class WorldMap:
     def path(self,start,goal,step=4,max_nodes=350000):
         start=tuple(map(float,start));goal=tuple(map(float,goal))
         if not self.walkable(*goal):raise RuntimeError('Destination is blocked in the local collision map.')
+        if not self.walkable(*start):
+            escape=self.escape_step(start,goal)
+            if escape is None:raise NoRouteError('No clear foot escape restores normal collision margins.')
+            direction,milliseconds=escape;vx,vy=self._velocities()[direction]
+            landing=(start[0]+vx*milliseconds/1000,start[1]+vy*milliseconds/1000)
+            return [list(start),*self.path(landing,goal,step,max_nodes)]
         if self.clear(start,goal):return [list(start),list(goal)]
         for resolution in ([step,1] if step>1 else [step]):
             points=self._grid_path(start,goal,resolution,max_nodes)
             if points is not None:return points
-        raise RuntimeError('No route through the static collision map.')
+        raise NoRouteError('No route through the static collision map.')
 
     def _grid_path(self,start,goal,step,max_nodes):
         def nearest(point):

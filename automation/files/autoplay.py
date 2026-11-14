@@ -183,6 +183,9 @@ class Supervisor:
                 or (state.get('battle') or {}).get('active') or (state.get('story') or {}).get('active')):
             return state
         cached=dict(self.cached_route['trace'])
+        progress=state.get('main_quest') or {}
+        signature=(state.get('pid'),state.get('map'),progress.get('chapter'),progress.get('step'),tuple(cached['points'][-1]))
+        if self.clock()<self.failed_recoveries.get(signature,-math.inf):return state
         if cached['route_type']==2:
             cached['steps_remaining']=math.ceil(math.dist((state['x'],state['y']),cached['points'][-1])/16)
         return {**state,'trace':cached}
@@ -479,8 +482,12 @@ class Supervisor:
         except StopRequested:raise
         except InputPaused as error:
             if action=='gps_refresh' and self.post_battle_since is not None:self.post_battle_refreshed=False
+            if action=='cached_recovery' and str(error)=='cached_route_blocked':
+                self.failed_recoveries[signature]=self.clock()+60
             self.pause(str(error));return
         except Exception as error:
+            from game_control import WindowUnavailable
+            if isinstance(error,WindowUnavailable):self.pause('window_unavailable',1);return
             self.no_progress+=1;self.cooldown=self.clock()+min(60,2**min(self.no_progress,6))
             self.publish('paused','action_failed',action=action,error_type=type(error).__name__)
             self.maybe_repair('action_failed',type(error).__name__)

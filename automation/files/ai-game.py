@@ -293,12 +293,19 @@ def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=Tru
     local_map=None;local_path=None;terrain_map=None
     diagonal='down_right' in state.get('movement_directions',[])
     if destination is not None:
-        from world_map import WorldMap
+        from world_map import NoRouteError,WorldMap
         destination=tuple(map(float,destination))
         if not all(math.isfinite(value) for value in destination):raise ValueError('Destination must be finite coordinates.')
         local_map=WorldMap(state['map'])
         planned_at=time.perf_counter()
-        local_path=local_map.path((state['x'],state['y']),destination)
+        try:local_path=local_map.path((state['x'],state['y']),destination)
+        except NoRouteError:
+            # An unavailable static route is a bounded navigation stop. The
+            # supervisor backs off local recovery without treating it as a bug.
+            return {'active':False,'reason':'local_route_unavailable','bursts':0,
+                    'mode':'local_path','navigation_source':'local_collision_atlas',
+                    'destination':list(destination),'replans':0,'before':state,'current':state,
+                    'blocked_directions':[],'redirects':0,'planner_ms':0}
         planning={'source':'local_collision_atlas','map':state['map'],'start':[state['x'],state['y']],
                   'goal':destination,'points':local_path,'planned_ms':round((time.perf_counter()-planned_at)*1000,2)}
         (LATEST/'local-path.json').write_text(json.dumps(planning,indent=2)+'\n')

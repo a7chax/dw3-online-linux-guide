@@ -88,6 +88,21 @@ class AutoplayTests(unittest.TestCase):
         self.assertFalse(report['active']);self.assertEqual(report['reason'],'max_cycles')
         self.assertEqual(report['game_pid'],123)
 
+    def test_unavailable_local_route_uses_recovery_backoff_without_repair(self):
+        signature=self.supervisor.recovery_signature(self.state)
+        self.supervisor.pending_recovery=signature
+        def follow(**kwargs):
+            self.game.actions.append(('follow',kwargs))
+            return {'reason':'local_route_unavailable','current':copy.deepcopy(self.state)}
+        self.game.follow_trace=follow
+        with patch.object(self.supervisor,'maybe_repair',side_effect=AssertionError('No route is not a controller failure')):
+            self.supervisor.run(max_cycles=1)
+        self.assertEqual(self.game.actions,[('follow',{'seconds':15,'destination':(400,200),'cross_map':True})])
+        self.assertEqual(self.supervisor.failed_recoveries[signature],60)
+        self.assertIsNone(self.supervisor.pending_recovery)
+        self.assertTrue(any(event['reason']=='local_route_unavailable' for event in self.events()))
+        self.assertFalse(any(event['reason']=='action_failed' for event in self.events()))
+
     def test_login_stale_and_unknown_action_pause_without_input(self):
         for changes in ({'phase':'login'},{'fresh':False},{'required_action':'unknown'}):
             with self.subTest(changes=changes):
@@ -329,6 +344,16 @@ class AutoplayTests(unittest.TestCase):
                 self.supervisor.run(max_cycles=1)
                 self.assertEqual(self.game.actions,[])
 
+    def test_unavailable_window_pauses_without_requesting_code_repair(self):
+        from game_control import WindowUnavailable
+        from unittest.mock import Mock
+        self.supervisor.repair_manager=Mock()
+        def unavailable(**kwargs):raise WindowUnavailable('Restore window')
+        self.game.follow_trace=unavailable
+        self.supervisor.run(max_cycles=3)
+        self.supervisor.repair_manager.observe.assert_not_called()
+        self.assertTrue(any(event['reason']=='window_unavailable' for event in self.events()))
+
     def test_known_popup_is_closed_before_navigation(self):
         from PIL import Image
         directory=self.session/'linux/ui';directory.mkdir(parents=True)
@@ -404,6 +429,16 @@ class AutoplayTests(unittest.TestCase):
         self.post_battle_without_gps();self.supervisor.run(max_cycles=7)
         self.assertFalse(any(action=='follow' for action,_ in self.game.actions))
         self.assertTrue(any(event['reason']=='cached_route_blocked' for event in self.events()))
+
+    def test_unreachable_cached_route_backs_off_instead_of_replanning_every_second(self):
+        class BlockedAtlas:
+            calls=0
+            def __init__(self,map_id):pass
+            def path(self,start,goal):
+                BlockedAtlas.calls+=1;raise RuntimeError('No static route')
+        self.supervisor.atlas_factory=BlockedAtlas
+        self.post_battle_without_gps();self.supervisor.run(max_cycles=12)
+        self.assertEqual(BlockedAtlas.calls,1)
 
     def test_known_route_survives_supervisor_restart_during_battle(self):
         self.state['trace'].update(route_type=1,points=[[200,200],[400,200]])

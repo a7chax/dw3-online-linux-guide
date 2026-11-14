@@ -136,7 +136,8 @@ class CodexRepair:
                         try:os.killpg(process.pid,signal.SIGKILL)
                         except ProcessLookupError:pass
                         process.wait(timeout=5)
-                state.update(status='repair_interrupted' if not isinstance(error,Exception) else 'repair_failed',worker_pid=None,error_type=type(error).__name__)
+                interrupted=not isinstance(error,Exception) or type(error).__name__=='StopRequested'
+                state.update(status='repair_interrupted' if interrupted else 'repair_failed',worker_pid=None,error_type=type(error).__name__)
                 self.save(state)
                 if not isinstance(error,Exception) or type(error).__name__=='StopRequested':raise
                 return {'restart':False,'reason':state['status']}

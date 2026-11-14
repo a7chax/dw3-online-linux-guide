@@ -13,7 +13,7 @@
     },
     {
       "path": "AI-GAME-CONTROL.md",
-      "sha256": "e1b8d6af4356e23033e325717f8769fdb895dfbd471c29157eb5f022a5d0bbed",
+      "sha256": "c69c151f8ccc7e33f8793c4fc9f655f07f2d0aee90534696c073f360abbef213",
       "mode": 420
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "7b80cc620d24657a3465b98ddc019d5e68dc11ab323ccf66129ffb78aaec8112",
+      "sha256": "ba25903fda12f4b797a2e6b105955ef8fe09c5bab3fd249ad6d2290774cfbd28",
       "mode": 420
     },
     {
@@ -53,7 +53,7 @@
     },
     {
       "path": "ai-game.py",
-      "sha256": "2a05395abe5d4cad9961de7871bbff0835226305b3532783353441bc0802f22e",
+      "sha256": "9705386d806a6a95a874df6c892fd00c66b635442edc16ab75644874b8184525",
       "mode": 493
     },
     {
@@ -63,12 +63,12 @@
     },
     {
       "path": "autoplay.py",
-      "sha256": "11121bbaa775479f968c51f804daa08c518b29c63b1c0e3d6fcbe03f18577b8b",
+      "sha256": "c7b46c8ce55d56aeb35a745266237d509071cd06629b742890f26f945ac36cab",
       "mode": 420
     },
     {
       "path": "codex_repair.py",
-      "sha256": "459260d052a0f110699025adf6b36c8bcadb347b415f2a17191aa6f0728dbfd9",
+      "sha256": "b45ec432bd12655f7e44282bd0dfaa0e7b28f510199d1204808d0183491ed651",
       "mode": 420
     },
     {
@@ -78,7 +78,7 @@
     },
     {
       "path": "game-control.py",
-      "sha256": "9e5eca7dc1e3e46071e2087972cb1dc1f35380fd73b49c0f0a199ad84fb20003",
+      "sha256": "e7679871abe562913b2a3a4e7bf1dedd437fa29e2a4ade3b40e1a501b260ab8e",
       "mode": 493
     },
     {
@@ -158,12 +158,12 @@
     },
     {
       "path": "linux/native/tests/test_autoplay.py",
-      "sha256": "50d22cd2a635488149ad38daff05cc22c2a05487e783a2fd06d1317ad582938f",
+      "sha256": "972c0e493580687ce9cfca812dfde64d5b576aeb74912a94a4b1b811c73f9f84",
       "mode": 420
     },
     {
       "path": "linux/native/tests/test_codex_repair.py",
-      "sha256": "62537f8108068b3a4f8a1c3f86d7ce997a484c47683fe2b910b0bfd07a94820d",
+      "sha256": "f75f87544d8fde415ededc1c2a61bbbed5ac871f050f1d4538ec5bd5b5a265ef",
       "mode": 420
     },
     {
@@ -184,6 +184,11 @@
     {
       "path": "linux/native/tests/test_dialogue_snapshot.py",
       "sha256": "eb858b06d18c29a9040193746a65e9f19b515d6e561dff84b4fad872014b1fe6",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_edge_escape.py",
+      "sha256": "8e49daca5f258cc35a742dbbda414dbf76fd59a824dd3a47ac81288176f285a9",
       "mode": 420
     },
     {
@@ -218,7 +223,7 @@
     },
     {
       "path": "linux/native/tests/test_navigation_modes.py",
-      "sha256": "cc7505390f6ce1a96f9f16b780cd3904e18cecd347353ec29b40b5f2398f2af7",
+      "sha256": "1e7cb075c38d3c3675fe146dfd65f9fe9ff4962ff5697db3ab1bd1420668e4c6",
       "mode": 420
     },
     {
@@ -292,6 +297,11 @@
       "mode": 420
     },
     {
+      "path": "linux/native/tests/test_window_capture.py",
+      "sha256": "bbcec0c7eb26549b79100ad4287fed4b457b79fb2d460121e2b754c60f05f31f",
+      "mode": 420
+    },
+    {
       "path": "linux/native/tests/test_world_atlas.py",
       "sha256": "166c337926b234fcff4fc03c6cee734ef160fa5653479190ccb49992bfcee134",
       "mode": 420
@@ -333,7 +343,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "1b2e2750642d04d80e0de31fec3002792573acdc2b6ffe15ff711fd0db9e9ce2",
+      "sha256": "ba1fb1ef5a6c0aa71b5cd9078ea47eb0f1d5ecde30e2ae8875a37101dbfe353c",
       "mode": 420
     },
     {
@@ -343,7 +353,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "4541b50d815779a9147bcf392ad89b0f0a52586755e058b776d01b06ff4f32b9",
+      "sha256": "34f9d5416b2b32444d650f84565ac3230ddc08480a2a235d739afbbbcacf23f1",
       "mode": 420
     },
     {
@@ -358,7 +368,7 @@
     },
     {
       "path": "world_map.py",
-      "sha256": "bd03924e73ff8bccf1c1fee09a4d84f622d7220c2ce6e637c106ebae521060da",
+      "sha256": "e1ce593325cabe9a586662bf4622377d4ba58acfa5e345329e20c8d0c7049045",
       "mode": 420
     }
   ]

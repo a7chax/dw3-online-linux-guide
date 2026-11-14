@@ -46,6 +46,18 @@ class RepairTests(unittest.TestCase):
     def poll(self):return 0
    r=m.CodexRepair(root/'session',root=root,popen=lambda *a,**k:Process(),run=lambda *a,**k:self.fail('Must not verify unchanged source'))
    self.assertFalse(r.repair(m.repair_context('action_failed',{},{}))['restart'])
+ def test_user_stop_is_reported_as_interrupted(self):
+  m=self.module()
+  class StopRequested(RuntimeError):pass
+  class Process:
+   pid=987
+   def poll(self):return 0
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td);(root/'autoplay.py').write_text('fixture');session=root/'session';session.mkdir()
+   repair=m.CodexRepair(session,root=root,popen=lambda *a,**k:Process())
+   def stop():raise StopRequested('stop_requested')
+   with self.assertRaises(StopRequested):repair.repair(m.repair_context('action_failed',{},{}),check_stop=stop)
+   self.assertEqual(repair.read()['status'],'repair_interrupted')
  def test_restart_arguments_pin_existing_session_and_pid(self):
   m=self.module();args=m.restart_arguments(['--repair-with-codex','--pid','123'],ROOT/'session',123)
   self.assertEqual(args[-4:],['--session',str(ROOT/'session'),'--pid','123']);self.assertIn('--repair-with-codex',args)

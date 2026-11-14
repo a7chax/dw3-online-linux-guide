@@ -91,6 +91,8 @@ uv run --locked python autoplay.py --stop
 
 There is no default time limit. `--max-cycles 3` gives a bounded run. Focus loss, invalid state, unsupported objectives, incomplete telemetry, and story choices can pause the controller. A running process does not prove quest progress or guarantee completion of every quest. Stop commands act on the monitored session; specify `--session /original/session/path` if `latest` has changed.
 
+If startup opens the game but movement stops, inspect `uv run --locked automation.py --status`. Resized-window captures now refresh geometry and trap X11 errors as a recoverable `window_unavailable` pause; restore/focus the same window. The planner can make a short clear-foot escape from its extra collision margin only when it lands back in full padded clearance. Missing routes remain bounded stops, and blocked cached routes back off for 60 seconds. These changes recovered the recorded startup case without weakening normal terrain checks.
+
 Map and quest exports must be generated locally, after login, when wanted:
 
 ```bash
@@ -116,7 +118,7 @@ After installing into your own prepared game, building the adapter/runtime, and 
 uv run --locked python -B -m unittest discover -s linux/native/tests -p 'test_*.py' -q
 ```
 
-The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. Live results recorded in the guides belong to the original inspected installation; verify your own setup separately.
+The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The startup recovery revision passed 162 local automation tests and 8 installer tests. A two-cycle live check moved from map `s205` to `s330`; an intentionally invalid X11 capture was caught, and the next capture succeeded. Live results belong to the original inspected installation; verify your own setup separately.
 
 ## Maintainers
 
