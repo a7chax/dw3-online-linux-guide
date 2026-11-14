@@ -268,7 +268,7 @@ def describe_quest(state):
     return quest
 
 
-def follow_trace(seconds=10,destination=None,cross_map=False,continuous=False):
+def follow_trace(seconds=10,destination=None,cross_map=False,continuous=False,interaction_target=None):
     # All movement commands for one monitored session share this lease.
     # A second script must not steal focus or interleave its movement bursts.
     if not 0<seconds<=300:raise ValueError('Follow duration must be between 0 and 300 seconds.')
@@ -276,7 +276,8 @@ def follow_trace(seconds=10,destination=None,cross_map=False,continuous=False):
         deadline=time.monotonic()+seconds;transitions=[]
         first_segment=True
         while True:
-            result=_follow_trace(max(.01,deadline-time.monotonic()),destination,cross_map,focus_on_start=first_segment)
+            options={'interaction_target':interaction_target} if interaction_target is not None else {}
+            result=_follow_trace(max(.01,deadline-time.monotonic()),destination,cross_map,focus_on_start=first_segment,**options)
             first_segment=False
             if result['reason']=='map_changed':
                 transitions.append({'from':result['before'].get('map'),'to':result['current'].get('map')})
@@ -286,13 +287,17 @@ def follow_trace(seconds=10,destination=None,cross_map=False,continuous=False):
             print('Continuing on map '+str(result['current'].get('map')),flush=True)
 
 
-def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=True):
+def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=True,interaction_target=None):
     from game_control import GameWindow
     from motion_watch import MotionWatch
     if not 0<seconds<=300:raise ValueError('Follow duration must be between 0 and 300 seconds.')
     state=request('status')
     if not fresh_state(state) or state.get('phase')!='world':raise RuntimeError('No fresh game world state.')
     if 'trace' not in state:raise RuntimeError('Restart the monitored game once to load GPS telemetry.')
+    if interaction_target is not None:
+        interaction_target=tuple(map(float,interaction_target))
+        if destination is None or len(interaction_target)!=2 or not all(math.isfinite(v) for v in interaction_target):
+            raise ValueError('Interaction recovery requires a destination and finite NPC coordinates.')
     local_map=None;local_path=None;terrain_map=None
     diagonal='down_right' in state.get('movement_directions',[])
     if destination is not None:
@@ -354,7 +359,9 @@ def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=Tru
             if state.get('movement_ready') is False:reason='world_input_blocked';break
             planning_state=state
             if local_map:
-                if math.dist((state['x'],state['y']),destination)<8 and not cross_map:
+                if interaction_target is not None and math.dist((state['x'],state['y']),interaction_target)<24:
+                    reason='interaction_required';break
+                if interaction_target is None and math.dist((state['x'],state['y']),destination)<8 and not cross_map:
                     reason='destination_reached';break
                 from world_map import remaining_path
                 dots=remaining_path(local_path,(state['x'],state['y']))
@@ -372,7 +379,9 @@ def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=Tru
                     (route_signature!=blocked_route or now-blocked_at>=1.2)):
                 blocked_direction=None
             normal=trace_step(planning_state,diagonal=diagonal)
-            if not local_map and trace.get('route_type')==2 and (trace.get('steps_remaining') or 0)<=2:
+            if normal is None and interaction_target is not None:
+                normal=trace_step({**state,'trace':{'enabled':True,'route_type':2,'points':[interaction_target]}},diagonal=diagonal)
+            if not local_map and trace.get('route_type')==2:
                 points=trace.get('points') or []
                 if points and math.dist((state['x'],state['y']),points[-1])<24:
                     reason='interaction_required';mode='at_interaction_target';break

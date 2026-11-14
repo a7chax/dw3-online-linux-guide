@@ -12,6 +12,52 @@ class Window:
  def focused(self):return True
  def close(self):pass
 class ModeTests(unittest.TestCase):
+ def test_npc_approach_does_not_claim_arrival_outside_talking_range(self):
+  import world_map
+  state=dict(phase='world',pid=123,map='fixture',x=100.,y=100.,facing=6,
+             time=datetime.now(timezone.utc).isoformat(),movement_ready=True,
+             trace=dict(enabled=True,route_type=2,steps_remaining=4,points=[[126,100]]))
+  class Atlas:
+   def __init__(self,map_id):pass
+   def path(self,start,goal):return [list(start),list(goal)]
+  def movement(*args,**kwargs):
+   before=copy.deepcopy(state);state['x']=106.
+   return dict(before=before,after=copy.deepcopy(state),moved=True)
+  with tempfile.TemporaryDirectory() as td,patch.object(game,'LATEST',Path(td)),\
+       patch.object(game,'request',side_effect=lambda op:copy.deepcopy(state)),\
+       patch.object(game,'move',side_effect=movement) as move,patch('game_control.GameWindow',Window),\
+       patch.object(world_map,'WorldMap',Atlas):
+   report=game.follow_trace(5,destination=(104,100),interaction_target=(126,100))
+  move.assert_called_once();self.assertEqual(report['reason'],'interaction_required')
+  self.assertEqual(report['current']['x'],106.)
+ def test_blocked_npc_destination_stops_before_window_or_input(self):
+  import world_map
+  original=world_map.WorldMap
+  for goal in ((300,278),(297.5,278)):
+   with self.subTest(goal=goal),tempfile.TemporaryDirectory() as td:
+    root=Path(td);atlas=root/'atlas';atlas.mkdir()
+    image=Image.new('L',(384,384),255)
+    image.paste(0,(300,270,310,290));image.save(atlas/'mask.png')
+    (atlas/'atlas.json').write_text(json.dumps({'maps':[dict(id='s255',width=384,height=384,collision='mask.png')]}))
+    state=dict(phase='world',map='s255',x=259.8908,y=277.5358,pid=118127,facing=7,
+               movement_ready=True,time=datetime.now(timezone.utc).isoformat(),
+               main_quest=dict(chapter=9,step=1,target_map='s255'),
+               trace=dict(enabled=True,route_type=2,steps_remaining=4,points=[list(goal)]))
+    # Cover both a blocked foot and a clear foot clipped by body clearance.
+    terrain=original('s255',atlas)
+    self.assertTrue(terrain.walkable(state['x'],state['y']))
+    self.assertFalse(terrain.walkable(*goal))
+    with patch.object(game,'LATEST',root),patch.object(game,'request',return_value=state),\
+         patch.object(game,'move',side_effect=AssertionError('Blocked destination must send no input')) as move,\
+         patch('game_control.GameWindow',side_effect=AssertionError('Blocked destination must not open a window')) as window,\
+         patch.object(world_map,'WorldMap',side_effect=lambda id:original(id,atlas)):
+     report=game.follow_trace(5,destination=goal,cross_map=True)
+    move.assert_not_called();window.assert_not_called()
+    self.assertEqual(report['reason'],'local_route_unavailable')
+    self.assertEqual(report['bursts'],0);self.assertFalse(report['active'])
+    self.assertEqual(report['current'],state)
+    self.assertEqual(report['destination'],list(goal))
+    self.assertEqual(json.loads((root/'follow-state.json').read_text()),report)
  def test_unreachable_local_route_stops_before_window_or_input(self):
   import world_map
   original=world_map.WorldMap

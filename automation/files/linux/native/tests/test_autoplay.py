@@ -103,6 +103,36 @@ class AutoplayTests(unittest.TestCase):
         self.assertTrue(any(event['reason']=='local_route_unavailable' for event in self.events()))
         self.assertFalse(any(event['reason']=='action_failed' for event in self.events()))
 
+    def test_npc_local_recovery_uses_reachable_standoff_without_crossing_map(self):
+        self.state['trace']['route_type']=2
+        signature=self.supervisor.recovery_signature(self.state);self.supervisor.pending_recovery=signature
+        class Atlas:
+            def __init__(self,map_id):pass
+            def interaction_destination(self,start,goal):return (388,200)
+        self.supervisor.atlas_factory=Atlas
+        self.supervisor.run(max_cycles=1)
+        self.assertEqual(self.game.actions,[('follow',{'seconds':15,'destination':(388,200),'cross_map':False,'interaction_target':(400,200)})])
+
+    def test_close_npc_uses_actual_distance_when_gps_step_counter_is_stale(self):
+        self.state.update(x=390.,y=200.,facing=6)
+        self.state['trace'].update(route_type=2,steps_remaining=4)
+        self.supervisor.run(max_cycles=1)
+        self.assertEqual(self.game.actions[0][0],'talk')
+
+    def test_missing_npc_approach_is_navigation_backoff_not_code_repair(self):
+        from world_map import NoRouteError
+        self.state['trace']['route_type']=2
+        signature=self.supervisor.recovery_signature(self.state);self.supervisor.pending_recovery=signature
+        class Atlas:
+            def __init__(self,map_id):pass
+            def interaction_destination(self,start,goal):raise NoRouteError('No reachable talking position')
+        self.supervisor.atlas_factory=Atlas
+        with patch.object(self.supervisor,'maybe_repair',side_effect=AssertionError('Expected navigation failure needs no code worker')):
+            self.supervisor.run(max_cycles=1)
+        self.assertEqual(self.game.actions,[])
+        self.assertEqual(self.supervisor.failed_recoveries[signature],60)
+        self.assertTrue(any(event['reason']=='local_route_unavailable' for event in self.events()))
+
     def test_login_stale_and_unknown_action_pause_without_input(self):
         for changes in ({'phase':'login'},{'fresh':False},{'required_action':'unknown'}):
             with self.subTest(changes=changes):
@@ -468,6 +498,7 @@ class AutoplayTests(unittest.TestCase):
         class Atlas:
             def __init__(self,map_id):pass
             def path(self,start,goal):return [list(start),list(goal)]
+            def interaction_destination(self,start,goal):return (goal[0]-12,goal[1])
         self.supervisor.atlas_factory=Atlas
         self.post_battle_without_gps(route_type=2,endpoint=(240,200))
         def approach(**kwargs):

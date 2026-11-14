@@ -97,6 +97,8 @@ There is no default time limit. `--max-cycles 3` gives a bounded run. Invalid st
 
 If startup opens the game but movement stops, inspect `uv run --locked automation.py --status`. Resized-window captures now refresh geometry and trap X11 errors as a recoverable `window_unavailable` pause; restore/focus that window when using the legacy capture path. The planner can make a short clear-foot escape from its extra collision margin only when it lands back in full padded clearance. Missing routes remain bounded stops, and blocked cached routes back off for 60 seconds. These changes recovered the recorded startup case without weakening normal terrain checks.
 
+NPC recovery selects a validated clear approach within interaction range instead of routing into a blocked NPC center. It retains facing/actual-distance checks, rejects stale GPS counts as arrival evidence, and backs off expected no-route cases without a code-repair worker. The old corner passed a real-atlas simulation; later live automation crossed maps and advanced chapter 9 step 2→3. This does not guarantee every objective will proceed without a pause.
+
 Map and quest exports must be generated locally, after login, when wanted:
 
 ```bash
@@ -122,7 +124,7 @@ After installing into your own prepared game, building the adapter/runtime, and 
 uv run --locked python -B -m unittest discover -s linux/native/tests -p 'test_*.py' -q
 ```
 
-The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The minimized-operation revision passed 181 local automation tests and 8 installer tests. The four-cycle background check above verified popup closure and movement while minimized. Earlier startup recovery checks moved from map `s205` to `s330` and recovered from an intentionally invalid X11 capture. Live results belong to the original inspected installation; verify your own setup separately.
+The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The NPC recovery revision passed 193 local automation tests and 8 installer tests. The four-cycle background check above verified popup closure and movement while minimized. Earlier startup recovery checks moved from map `s205` to `s330` and recovered from an intentionally invalid X11 capture. Live results belong to the original inspected installation; verify your own setup separately.
 
 ## Maintainers
 

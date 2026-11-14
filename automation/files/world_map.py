@@ -167,9 +167,60 @@ class WorldMap:
                 if best is None or rank<best[0]:best=(rank,step)
         return None if best is None else best[1]
 
+    def interaction_destination(self,start,goal):
+        """Find a validated NPC approach strictly within the 24-pixel range.
+
+        This bounded, offline search leaves ordinary path goals strict. Prefer
+        approaches with at least four pixels of interaction margin, then use
+        the outer ring only where the collision mask requires it. No point is
+        returned without a clear segment or a successful local path search.
+        Callers must check actual NPC distance after movement; reaching a route
+        waypoint with a broad arrival tolerance does not establish interaction.
+        """
+        start=tuple(map(float,start));goal=tuple(map(float,goal))
+        if len(start)!=2 or len(goal)!=2 or not all(math.isfinite(v) for v in (*start,*goal)):
+            raise ValueError('Interaction coordinates must be finite pairs.')
+        if self.walkable(*start) and math.dist(start,goal)<=23.5:return start
+        radius=23.5;candidates=set()
+        angle=math.atan2(start[1]-goal[1],start[0]-goal[0])
+        for distance in (12,16,20,22,radius):
+            for index in range(48):
+                bearing=angle+index*math.tau/48
+                candidates.add((goal[0]+distance*math.cos(bearing),goal[1]+distance*math.sin(bearing)))
+        # Include raster centers so a narrow valid landing between radial
+        # samples is considered. This disk contains fewer than 2,304 cells.
+        for x in range(math.floor(goal[0]-radius),math.ceil(goal[0]+radius)):
+            for y in range(math.floor(goal[1]-radius),math.ceil(goal[1]+radius)):
+                point=(x+.5,y+.5)
+                if math.dist(point,goal)<=radius:candidates.add(point)
+        candidates=[point for point in candidates if self.walkable(*point)]
+        def rank(point):
+            distance=math.dist(point,goal)
+            margin_band=0 if distance<=20 else 1 if distance<=22 else 2
+            return margin_band,math.dist(start,point),distance,point
+        candidates.sort(key=rank)
+        if self.walkable(*start):
+            for point in candidates:
+                if self.clear(start,point):return point
+        # Bound expensive detour searches to eight angular representatives.
+        # Separate sectors prevent nearby disconnected cells consuming every
+        # attempt. Exhaustion is a safe no-route result, never a blocked goal.
+        sectors={}
+        for point in candidates:
+            sector=int((math.atan2(point[1]-goal[1],point[0]-goal[0])%math.tau)/(math.tau/8))
+            sectors.setdefault(sector,point)
+        for point in sorted(sectors.values(),key=rank):
+            try:self.path(start,point,max_nodes=12000)
+            except NoRouteError:continue
+            except RuntimeError as error:
+                if str(error)!='Local route search exceeded its node limit.':raise
+                continue
+            return point
+        raise NoRouteError('No collision-clear NPC approach within interaction range (bounded search).')
+
     def path(self,start,goal,step=4,max_nodes=350000):
         start=tuple(map(float,start));goal=tuple(map(float,goal))
-        if not self.walkable(*goal):raise RuntimeError('Destination is blocked in the local collision map.')
+        if not self.walkable(*goal):raise NoRouteError('Destination is blocked in the local collision map.')
         if not self.walkable(*start):
             escape=self.escape_step(start,goal)
             if escape is None:raise NoRouteError('No clear foot escape restores normal collision margins.')

@@ -87,7 +87,7 @@ def policy(state,quest,scene_targets=(),blocked_alignment=False,battle_space=Fal
     if state.get('movement_ready') is False:return None,'movement_not_ready'
     trace=state.get('trace') or {};endpoint=route_endpoint(state)
     if endpoint is not None:
-        if (trace.get('route_type')==2 and (trace.get('steps_remaining') or 0)<=2
+        if (trace.get('route_type')==2
                 and all(isinstance(state.get(k),(int,float)) for k in ('x','y'))
                 and math.dist((state['x'],state['y']),endpoint)<24):
             if interaction_alignment(state,blocked_alignment) is not None:return 'align','interaction_alignment'
@@ -202,21 +202,36 @@ class Supervisor:
         if route_endpoint(state) is not None:return {'reason':'route_changed','current':state}
         planned=self.routing_state(state)
         if planned is state or state.get('movement_ready') is not True:raise InputPaused('cached_route_changed')
-        points=planned['trace']['points'];goal=tuple(points[-1]);interaction=planned['trace']['route_type']==2
-        if interaction:
-            previous=next((point for point in reversed(points[:-1]) if math.dist(point,goal)>0),[state['x'],state['y']])
-            length=math.dist(previous,goal)
-            if length==0:raise InputPaused('cached_route_blocked')
-            goal=(goal[0]+12*(previous[0]-goal[0])/length,goal[1]+12*(previous[1]-goal[1])/length)
+        points=planned['trace']['points'];goal=tuple(points[-1]);target=goal;interaction=planned['trace']['route_type']==2
         try:
             factory=self.atlas_factory
             if factory is None:
                 from world_map import WorldMap
                 factory=WorldMap
-            factory(state['map']).path((state['x'],state['y']),goal)
+            atlas=factory(state['map'])
+            if interaction:goal=atlas.interaction_destination((state['x'],state['y']),target)
+            else:atlas.path((state['x'],state['y']),goal)
         except (OSError,ValueError,RuntimeError):raise InputPaused('cached_route_blocked') from None
         self.check_input(state,self.state['map'])
-        return self.game.follow_trace(seconds=12,destination=goal,cross_map=not interaction)
+        options={'interaction_target':target} if interaction else {}
+        return self.game.follow_trace(seconds=12,destination=goal,cross_map=not interaction,**options)
+
+    def recover_local_route(self):
+        state=self.game.request('status');self.check_input(state,self.state['map'])
+        signature=self.recovery_signature(state)
+        if signature!=self.recovery_signature(self.state):raise InputPaused('route_changed')
+        goal=route_endpoint(state)
+        if goal is None:return {'reason':'route_changed','current':state}
+        interaction=(state.get('trace') or {}).get('route_type')==2;options={}
+        if interaction:
+            from world_map import NoRouteError,WorldMap
+            factory=self.atlas_factory or WorldMap
+            try:destination=factory(state['map']).interaction_destination((state['x'],state['y']),goal)
+            except NoRouteError:return {'reason':'local_route_unavailable','current':state}
+            options['interaction_target']=goal;goal=destination
+        verified=self.game.request('status');self.check_input(verified,state['map'])
+        if self.recovery_signature(verified)!=signature:raise InputPaused('route_changed')
+        return self.game.follow_trace(seconds=15,destination=goal,cross_map=not interaction,**options)
 
     def maybe_repair(self,reason,error_type=None):
         if self.repair_manager is None:return False
@@ -498,7 +513,7 @@ class Supervisor:
                 elif action=='gps_refresh':result=self.gps_refresh()
                 elif action=='cached_recovery':result=self.recover_battle_route()
                 elif action=='local_recovery':
-                    result=self.game.follow_trace(seconds=15,destination=route_endpoint(self.state),cross_map=True)
+                    result=self.recover_local_route()
                 else:result=self.game.follow_trace(seconds=12,continuous=True)
         except StopRequested:raise
         except InputPaused as error:

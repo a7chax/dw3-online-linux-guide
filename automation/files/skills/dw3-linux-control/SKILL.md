@@ -96,6 +96,8 @@ For “game opens but stays still,” inspect status/events before changing inpu
 
 A nearby type-2 NPC/terminal endpoint also needs correct facing. The updated supervisor can make a single short alignment move, then talk; at an NPC collision boundary it can use a bounded same-target fallback instead of repeatedly pushing. Inspect the report and verify dialogue actually opens. The new automatic alignment has fixture coverage; the recorded Station terminal opening used a manual alignment and should not be presented as a live automatic-alignment result.
 
+NPC local/cached recovery must use `WorldMap.interaction_destination`, a bounded validated approach strictly within 24 units, rather than a blocked NPC center. Preserve `interaction_target` and `cross_map: false`; completion checks actual NPC distance, not the generic eight-unit waypoint tolerance or a stale GPS step count. Expected `NoRouteError` means backoff without Codex repair. Real-atlas simulation reproduced the original corner successfully; later live automation crossed maps and advanced chapter 9 step 2→3, rather than replaying that exact old NPC position. Keep those evidence types distinct.
+
 At a usable GPS endpoint, the bounded crossing attempt aims toward the endpoint or final route segment, rather than a stale character facing left by collision recovery. Missing-route fallback still uses current facing. Neither attempt proves an exit exists; keep the time bound and verify the map change.
 
 ## Popups and quest interactions
