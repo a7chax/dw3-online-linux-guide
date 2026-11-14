@@ -126,6 +126,23 @@ class AutoplayTests(unittest.TestCase):
         self.assertEqual(len(self.game.actions),1);self.assertEqual(self.windows.focus_calls,1)
         self.assertTrue(any(event['reason']=='focus_lost' for event in self.events()))
 
+    def test_background_controller_runs_unfocused_without_activating_window(self):
+        self.state['native_background_input']=True;self.windows.focused=False
+        self.game.after_action=lambda:self.state.update(x=self.state['x']+10)
+        self.supervisor.run(max_cycles=3)
+        self.assertEqual(len(self.game.actions),3)
+        self.assertEqual(self.windows.focus_calls,0)
+        self.assertFalse(self.windows.focused)
+        self.assertFalse(any(event['reason']=='focus_lost' for event in self.events()))
+
+    def test_background_mode_still_rejects_changed_pid(self):
+        self.state['native_background_input']=True;self.windows.focused=False
+        self.game.after_action=lambda:self.state.update(pid=456)
+        self.supervisor.run(max_cycles=3)
+        self.assertEqual(len(self.game.actions),1)
+        self.assertEqual(self.windows.focus_calls,0)
+        self.assertTrue(any(event['reason']=='session_changed' for event in self.events()))
+
     def test_changed_pid_never_receives_input(self):
         self.game.after_action=lambda:self.state.update(pid=456)
         self.supervisor.run(max_cycles=3)
@@ -372,6 +389,57 @@ class AutoplayTests(unittest.TestCase):
         self.supervisor.run(max_cycles=1)
         self.assertEqual(self.game.actions,[('click',(20,30))])
         self.assertTrue(any(event['reason']=='popup_closed' for event in self.events()))
+
+    def test_slow_background_capture_revalidates_before_popup_click(self):
+        from PIL import Image
+        self.state.update(native_background_input=True,native_click_input=True)
+        self.windows.focused=False
+        self.game.ROOT=self.session;directory=self.session/'linux/ui';directory.mkdir(parents=True)
+        Image.new('RGB',(20,20)).save(directory/'popup-close.png')
+        self.game.request=lambda operation:{**copy.deepcopy(self.state),'observed_at':self.clock.now}
+        self.game.fresh_state=lambda state:self.clock.now-state.get('observed_at',-100)<3
+        self.game._quest_step=lambda state:Game._quest_step(self.game,state) if self.game.fresh_state(state) else None
+        matches=iter([(20,30),None]);self.game.find_popup_close=lambda image:next(matches)
+        def click(window,x,y):
+            self.game.request('status')  # Exercise the guarded freshness/context poll.
+            self.game.actions.append(('click',(x,y)))
+        self.game.click_game=click
+        factory=self.supervisor.window_factory
+        def window(pid):
+            result=factory(pid)
+            def capture(path):
+                self.clock.sleep(4);Image.new('RGB',(80,60)).save(path)
+            result.screenshot=capture;return result
+        self.supervisor.window_factory=window
+        self.supervisor.run(max_cycles=1)
+        self.assertEqual(self.game.actions,[('click',(20,30))])
+        self.assertEqual(self.windows.focus_calls,0)
+        self.assertTrue(any(event['reason']=='popup_closed' for event in self.events()))
+
+    def test_popup_click_rejects_modal_change_during_capture_or_final_poll(self):
+        from PIL import Image
+        self.game.ROOT=self.session;directory=self.session/'linux/ui';directory.mkdir(parents=True)
+        Image.new('RGB',(20,20)).save(directory/'popup-close.png')
+        factory=self.supervisor.window_factory
+        for stage in ('capture','final_poll'):
+            with self.subTest(stage=stage):
+                self.state.clear();self.state.update(world());self.state.update(native_background_input=True,native_click_input=True)
+                self.game.actions.clear();self.supervisor.last_popup_check=-100
+                self.game.find_popup_close=lambda image:(20,30)
+                def click(window,x,y):
+                    if stage=='final_poll':self.state['battle']={'active':True}
+                    self.game.request('status')
+                    self.game.actions.append(('click',(x,y)))
+                self.game.click_game=click
+                def window(pid):
+                    result=factory(pid)
+                    def capture(path):
+                        if stage=='capture':self.state['battle']={'active':True}
+                        Image.new('RGB',(80,60)).save(path)
+                    result.screenshot=capture;return result
+                self.supervisor.window_factory=window
+                self.supervisor.run(max_cycles=1)
+                self.assertEqual(self.game.actions,[])
 
     def post_battle_without_gps(self,route_type=1,endpoint=(400,200)):
         self.state['trace'].update(route_type=route_type,points=[[200,200],list(endpoint)],steps_remaining=50)

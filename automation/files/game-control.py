@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Read game state and send bounded input to one verified Linux game window."""
 import argparse
+import base64
 import ctypes as C
 import ctypes.util
 from datetime import datetime, timezone
 import getpass
 import json
+import io
 import os
 from pathlib import Path
 import re
@@ -92,11 +94,36 @@ class WindowUnavailable(RuntimeError):
     """The game window must be restored or refreshed before UI operations."""
 
 
+def _native_control():
+    import importlib.util
+    spec=importlib.util.spec_from_file_location('dw3_capture_control',ROOT/'ai-game.py')
+    game=importlib.util.module_from_spec(spec);spec.loader.exec_module(game)
+    game.LATEST=DEFAULT_STATE.parent.resolve()
+    return game
+
+
 class GameWindow:
     def __init__(self, pid):
-        self.window, self.width, self.height = find_window(pid)
-        self.pid = pid
-        self.modifiers = 0
+        self.pid=pid;self.modifiers=0;self.display=None;self.width=0;self.height=0
+        self.native_capture=False;self._native_game=None
+        try:
+            game=_native_control();state=game.request('status')
+        except (OSError,RuntimeError,ValueError):state=None
+        if isinstance(state,dict):
+            if state.get('pid')!=pid:raise WindowUnavailable('The monitored game process changed.')
+            if state.get('native_capture') is True and state.get('native_background_input') is True:
+                self._native_game=game;self.native_capture=True;self._native_status(state);return
+        self._init_x11()
+
+    def _native_status(self,state=None):
+        state=self._native_game.request('status') if state is None else state
+        if (not self._native_game.fresh_state(state) or state.get('pid')!=self.pid
+                or state.get('native_capture') is not True or state.get('native_background_input') is not True):
+            raise WindowUnavailable('Fresh native capture is unavailable for the expected game process.')
+        return state
+
+    def _init_x11(self):
+        self.window, self.width, self.height = find_window(self.pid)
         self.x = C.CDLL(ctypes.util.find_library('X11'))
         signatures = {
             'XOpenDisplay': ([C.c_char_p], C.c_void_p),
@@ -133,11 +160,14 @@ class GameWindow:
             self.display = None
 
     def focused(self):
+        if getattr(self,'native_capture',False):return self._native_status().get('window_focused') is True
         window, revert = C.c_ulong(), C.c_int()
         self.x.XGetInputFocus(self.display, C.byref(window), C.byref(revert))
         return window.value == self.window
 
     def focus(self):
+        if getattr(self,'native_capture',False):
+            self._native_status();return  # Native background operations never activate an OS window.
         with self._checked_x('Focus'):
             self._focus_window()
 
@@ -177,6 +207,9 @@ class GameWindow:
             raise RuntimeError('The selected game window did not receive focus. No input was sent.')
 
     def code(self, key):
+        if getattr(self,'native_capture',False):
+            raise RuntimeError('Raw keys are unavailable in native mode. Use ai-game.py move or login.')
+        if not self.display:self._init_x11()
         sym = self.x.XStringToKeysym(key.encode('ascii'))
         code = self.x.XKeysymToKeycode(self.display, sym)
         if not code:
@@ -184,6 +217,9 @@ class GameWindow:
         return code
 
     def key_event(self, key, down):
+        if getattr(self,'native_capture',False):
+            raise RuntimeError('Raw key events are unavailable in native mode. Use ai-game.py move or login.')
+        if not self.display:self._init_x11()
         event = XEvent()
         event.key.type = 2 if down else 3
         event.key.display = self.display
@@ -199,6 +235,12 @@ class GameWindow:
         self.x.XSync(self.display, 0)
 
     def tap(self, name):
+        if getattr(self,'native_capture',False):
+            key='enter' if name.lower() in {'return','enter'} else name.lower()
+            if key not in {'space','enter','g','x'}:
+                raise RuntimeError('Unsupported native key. Use ai-game.py move or login.')
+            with self._native_game.navigation_lease():
+                return self._native_game.press_game_key(self,key)
         modifiers = {'ctrl': 'Control_L', 'shift': 'Shift_L', 'alt': 'Alt_L'}
         parts = name.split('+')
         keys = [modifiers.get(part.lower(), part) for part in parts]
@@ -213,6 +255,8 @@ class GameWindow:
                 self.key_event(key, False)
 
     def type_text(self, text):
+        if getattr(self,'native_capture',False):
+            raise RuntimeError('Credential typing is unavailable in native mode. Use ai-game.py login.')
         if any(not (character.isascii() and character.isalnum()) for character in text):
             raise ValueError('This credential input helper accepts ASCII letters and digits only.')
         for character in text:
@@ -222,12 +266,14 @@ class GameWindow:
     def native_click(self, x, y):
         # Compatibility entry point: target this game's input processor, not
         # the desktop pointer or GNOME's XTEST/Remote Desktop portal.
+        if getattr(self,'native_capture',False):return self._native_game.click_game(self,x,y)
         import importlib.util
         spec=importlib.util.spec_from_file_location('dw3_click_control',ROOT/'ai-game.py')
         game=importlib.util.module_from_spec(spec);spec.loader.exec_module(game)
         return game.click_game(self,x,y)
 
     def click(self, x, y):
+        if getattr(self,'native_capture',False):return self._native_game.click_game(self,x,y)
         if not (0 <= x < self.width and 0 <= y < self.height):
             raise ValueError('Click lies outside the verified game window.')
         root_x, root_y, child = C.c_int(), C.c_int(), C.c_ulong()
@@ -260,6 +306,22 @@ class GameWindow:
 
     def screenshot(self, path):
         from PIL import Image
+        if getattr(self,'native_capture',False):
+            try:
+                self._native_status()
+                capture=self._native_game.request('capture',expected_pid=self.pid)
+                width,height=capture['width'],capture['height']
+                if (capture.get('pid')!=self.pid or type(width) is not int or type(height) is not int
+                        or width<=0 or height<=0 or width*height>16777216):
+                    raise ValueError('Invalid native capture identity or dimensions.')
+                png=base64.b64decode(capture['png_base64'],validate=True)
+                with Image.open(io.BytesIO(png)) as image:
+                    if image.format!='PNG' or image.size!=(width,height):raise ValueError('Invalid native PNG dimensions.')
+                    image.load()
+            except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+                raise WindowUnavailable('Native framebuffer capture is unavailable; no X11 capture fallback was used.') from None
+            self.width,self.height=width,height;path=Path(path)
+            path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(png);return
         with self._checked_x('Capture'):
             root,x,y=C.c_ulong(),C.c_int(),C.c_int()
             width,height,border,depth=C.c_uint(),C.c_uint(),C.c_uint(),C.c_uint()
@@ -297,7 +359,6 @@ def main():
         print(json.dumps(state)); return
     if args.command == 'type' and state['phase'] != 'login':
         raise RuntimeError('Credential input is allowed only on the verified login screen.')
-    text = getpass.getpass('Text (not saved): ') if args.command == 'type' and args.secret else getattr(args, 'text', None)
     state = read_state(args.state_file)
     window = GameWindow(state['pid'])
     try:
@@ -307,14 +368,25 @@ def main():
             window.screenshot(args.path);print(json.dumps({'image': str(args.path), 'pid': state['pid']}))
         elif args.command == 'resize':
             if not (640 <= args.width <= 1920 and 360 <= args.height <= 1080): raise ValueError('Unsupported test window size.')
+            if not window.display:window._init_x11()
             window.x.XResizeWindow(window.display, window.window, args.width, args.height)
             window.x.XSync(window.display, 0)
         elif args.command == 'click': window.click(args.x, args.y)
         elif args.command == 'key': window.tap(args.name)
-        elif args.command == 'type': window.type_text(text)
+        elif args.command == 'type':
+            if getattr(window,'native_capture',False):
+                raise RuntimeError('Credential typing is unavailable in native mode. Use ai-game.py login.')
+            text=getpass.getpass('Text (not saved): ') if args.secret else args.text
+            window.type_text(text)
         elif args.command == 'move':
             if state['phase'] != 'world': raise RuntimeError('Movement is allowed only after entering the game world.')
             if not .05 <= args.seconds <= .75: raise ValueError('Use a movement duration from 0.05 to 0.75 seconds.')
+            if getattr(window,'native_capture',False):
+                game=window._native_game
+                with game.navigation_lease():
+                    result=game.move(args.direction,round(args.seconds*1000),focus=False,quiet=True,
+                                     expected_map=state['map'],expected_pid=state['pid'])
+                print(json.dumps(result));return
             key = {'up':'Up','down':'Down','left':'Left','right':'Right'}[args.direction]
             history = args.state_file.with_name('state-events.jsonl')
             offset = history.stat().st_size if history.exists() else 0

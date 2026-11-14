@@ -218,19 +218,22 @@ def navigation_lease():
         yield
 
 
-def move(direction,milliseconds,focus=True,quiet=False,expected_map=None):
-    if not focus:return _move(direction,milliseconds,focus,quiet,expected_map)
-    with navigation_lease():return _move(direction,milliseconds,focus,quiet,expected_map)
+def move(direction,milliseconds,focus=True,quiet=False,expected_map=None,expected_pid=None):
+    if not focus:return _move(direction,milliseconds,focus,quiet,expected_map,expected_pid)
+    with navigation_lease():return _move(direction,milliseconds,focus,quiet,expected_map,expected_pid)
 
 
-def _move(direction,milliseconds,focus=True,quiet=False,expected_map=None):
+def _move(direction,milliseconds,focus=True,quiet=False,expected_map=None,expected_pid=None):
     window=None
     try:
-        if focus:
+        status=request('status')
+        if not fresh_state(status) or status.get('phase')!='world':raise RuntimeError('No fresh game world state for movement.')
+        if expected_pid is not None and status.get('pid')!=expected_pid:raise RuntimeError('The monitored game session changed.')
+        if expected_map is None:expected_map=status.get('map')
+        if focus and status.get('native_background_input') is not True:
             from game_control import GameWindow
-            status=request('status');expected_map=status.get('map')
-            window=GameWindow(status['pid']);window.focus()
-        parameters={'direction':direction,'milliseconds':milliseconds}
+            window=GameWindow(status['pid']);prepare_input_window(window,status)
+        parameters={'direction':direction,'milliseconds':milliseconds,'expected_pid':status['pid']}
         if expected_map is not None:parameters['expected_map']=expected_map
         result=request('move',**parameters)
     finally:
@@ -330,8 +333,8 @@ def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=Tru
                 'blocked_directions':sorted(blocked_directions),'redirects':redirects,'planner_ms':round(planner_ms,3)}
         temporary=report.with_suffix('.tmp');temporary.write_text(json.dumps(output,indent=2)+'\n');temporary.replace(report)
     try:
-        if focus_on_start:window.focus()
-        elif not window.focused():
+        if focus_on_start:prepare_input_window(window,state)
+        elif not input_available(window,state):
             reason='focus_lost'
             record(False)
             return json.loads(report.read_text())
@@ -341,7 +344,7 @@ def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=Tru
             if not fresh_state(state):reason='stale_state';break
             if state.get('pid')!=initial.get('pid'):reason='session_changed';break
             if state.get('phase')=='world' and state.get('map')!=initial.get('map'):reason='map_changed';break
-            if not window.focused():reason='focus_lost';break
+            if not input_available(window,state):reason='focus_lost';break
             if state.get('phase') in ('loading_map','starting'):
                 mode='waiting_for_map';record(True);time.sleep(.1);continue
             if state.get('phase')!='world':reason='screen_changed';break
@@ -419,7 +422,7 @@ def _follow_trace(seconds=10,destination=None,cross_map=False,focus_on_start=Tru
                 forward_bursts+=1
             record(True)
             try:
-                result=move(*step,focus=False,quiet=True,expected_map=initial['map'])
+                result=move(*step,focus=False,quiet=True,expected_map=initial['map'],expected_pid=initial['pid'])
             except RuntimeError:
                 # A transfer may complete between polling and key-down. The
                 # bridge correctly refuses that old-map input; confirm state.
@@ -487,11 +490,20 @@ def find_popup_close(screen):
         offset+=1
 
 
+def input_available(window,state):
+    """Native callbacks target this game even when its window is minimized."""
+    return state.get('native_background_input') is True or window.focused()
+
+
+def prepare_input_window(window,state):
+    if state.get('native_background_input') is not True:window.focus()
+
+
 def _game_input_state(window):
     state=request('status')
     if not fresh_state(state) or state.get('phase')!='world':raise RuntimeError('No fresh game world state for input.')
     if state.get('pid')!=window.pid:raise RuntimeError('The monitored game session changed.')
-    if not window.focused():raise _InteractionFocusLost('Game window lost focus.')
+    if not input_available(window,state):raise _InteractionFocusLost('Game window lost focus.')
     return state
 
 
@@ -528,8 +540,8 @@ def _interact(emit=True,window=None,focus_on_start=True):
     if owns_window:window=GameWindow(state['pid'])
     try:
         if window.pid!=state['pid']:raise RuntimeError('The monitored game session changed.')
-        if focus_on_start:window.focus()
-        if not window.focused():raise _InteractionFocusLost('Game window lost focus.')
+        if focus_on_start:prepare_input_window(window,state)
+        if not input_available(window,state):raise _InteractionFocusLost('Game window lost focus.')
         press_game_key(window,'space');time.sleep(.25)
         window.screenshot(LATEST/'after-interact.png')
     finally:
@@ -559,13 +571,13 @@ def talk(seconds=30,max_pages=12):
         deadline=time.monotonic()+seconds;pages=0;reason='dialogue_timeout'
         window=GameWindow(state['pid'])
         try:
-            window.focus()
+            prepare_input_window(window,state)
             if not state.get('dialogue'):state=_interact(emit=False,window=window,focus_on_start=False)
             while time.monotonic()<deadline:
                 if not fresh_state(state):reason='stale_state';break
                 if state.get('phase')!='world':reason='screen_changed';break
                 if state.get('pid')!=initial['pid']:reason='session_changed';break
-                if not window.focused():reason='focus_lost';break
+                if not input_available(window,state):reason='focus_lost';break
                 current=_quest_step(state)
                 if original is not None and current is not None and current!=original:
                     reason='quest_progressed';break
@@ -598,12 +610,15 @@ def scene(seconds=60,max_presses=30):
         if (original is None or type(state.get('pid')) is not int or state['pid']<=0
                 or not isinstance(state.get('map'),str) or not state['map']):
             raise RuntimeError('Scene input requires a fresh game world, PID, map, and main-quest progress.')
-        deadline=time.monotonic()+seconds;next_press=0;presses=0;reason='time_limit'
+        next_press=0;presses=0;reason='time_limit'
         window=GameWindow(state['pid'])
         print('Scene mode sends normal Space presses; Space can confirm choices. No scene or choice detection.',flush=True)
         try:
-            window.focus()
+            prepare_input_window(window,state)
             window.screenshot(LATEST/'before-scene.png')
+            # Capture preparation can exceed a one-second battle action. The
+            # input budget starts afterward; every press still revalidates state.
+            deadline=time.monotonic()+seconds
             while time.monotonic()<deadline:
                 state=request('status')
                 if not fresh_state(state):reason='stale_state';break
@@ -612,7 +627,7 @@ def scene(seconds=60,max_presses=30):
                 if state.get('map')!=initial['map']:reason='map_changed';break
                 current=_quest_step(state)
                 if current is None:reason='invalid_quest_state';break
-                if not window.focused():reason='focus_lost';break
+                if not input_available(window,state):reason='focus_lost';break
                 if current!=original:reason='quest_progressed';break
                 now=time.monotonic()
                 if now>=deadline:break
@@ -645,7 +660,7 @@ def _dismiss_popup():
     if status.get('phase')!='world':raise RuntimeError('Popup dismissal is only available in the game world.')
     window=GameWindow(status['pid'])
     try:
-        window.focus()
+        prepare_input_window(window,status)
         window.screenshot(LATEST/'before-dismiss.png')
         from PIL import Image
         with Image.open(LATEST/'before-dismiss.png') as screen:button=find_popup_close(screen)

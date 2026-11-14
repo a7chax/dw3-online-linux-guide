@@ -14,7 +14,8 @@ spec=importlib.util.spec_from_file_location('automation_entry_test',ROOT/'automa
 entry=importlib.util.module_from_spec(spec);spec.loader.exec_module(entry)
 
 def world():
-    return {'phase':'world','pid':123,'map':'fixture','native_key_input':['space','enter','g','x'],'native_click_input':True}
+    return {'phase':'world','pid':123,'map':'fixture','native_key_input':['space','enter','g','x'],
+            'native_click_input':True,'native_background_input':True,'native_capture':True}
 
 class EntryTests(unittest.TestCase):
     def setUp(self):
@@ -62,16 +63,28 @@ class EntryTests(unittest.TestCase):
         self.game.request.return_value={'phase':'world','pid':123,'map':'fixture'}
         self.run_entry(max_cycles=1)
         self.assertEqual(self.runner.call_count,1);self.game.login.assert_called_once_with(restart=True)
+    def test_foreground_only_bridge_is_upgraded_for_minimized_operation(self):
+        self.game.request.return_value={**world(),'native_background_input':False}
+        self.run_entry(max_cycles=1)
+        self.assertEqual(self.runner.call_count,1);self.game.login.assert_called_once_with(restart=True)
     def test_missing_executable_or_runtime_builds_native_launcher(self):
         (self.root/'linux/runtime/bin/java').unlink()
         self.run_entry(max_cycles=1)
         self.assertEqual(self.runner.call_args.args[0],['/tools/bash','linux/native/build-executable.sh'])
     def test_existing_controller_is_focused_without_build_or_second_supervisor(self):
+        self.game.request.return_value={**world(),'native_background_input':False}
         with (self.session/'autoplay.lock').open('a+') as lease:
             fcntl.flock(lease,fcntl.LOCK_EX|fcntl.LOCK_NB)
             result=self.run_entry(max_cycles=1)
         self.assertTrue(result['already_running']);self.window.focus.assert_called_once();self.window.close.assert_called_once()
         self.runner.assert_not_called();self.game.login.assert_not_called();self.factory.assert_not_called()
+    def test_background_existing_controller_does_not_restore_or_focus_window(self):
+        self.game.request.return_value={**world(),'native_background_input':True,'native_capture':True}
+        with (self.session/'autoplay.lock').open('a+') as lease:
+            fcntl.flock(lease,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            result=self.run_entry()
+        self.assertTrue(result['already_running']);self.window_factory.assert_not_called()
+        self.factory.assert_not_called();self.runner.assert_not_called()
     def test_missing_identity_stops_before_build_or_login(self):
         self.game.request.side_effect=OSError('No monitored client')
         self.game.login_settings.return_value={'username':'','character':'','password':None}

@@ -35,6 +35,13 @@ def route_endpoint(state):
     return tuple(point)
 
 
+def popup_modal_context(state):
+    fields={'battle':('active','transitioning','submitted','can_advance'),
+            'story':('active','awaiting_choice','choice_count','page_index','can_advance'),
+            'dialogue':('entity_id','page_index','page_count','can_advance','choice_count')}
+    return tuple(tuple((state.get(kind) or {}).get(key) for key in keys) for kind,keys in fields.items())
+
+
 def cacheable_trace(trace):
     points=trace.get('points') or []
     return (trace.get('enabled') is True and type(trace.get('route_type')) is int and trace.get('route_type') in (1,2)
@@ -236,9 +243,17 @@ class Supervisor:
         with self.game.navigation_lease():
             fresh=self.game.request('status');self.check_input(fresh,self.state['map'])
             if fresh.get('native_click_input') is not True:return False
+            identity=self.route_identity(fresh)
+            modal=popup_modal_context(fresh)
             self.window.screenshot(self.session/'popup-check.png')
             from PIL import Image
             with Image.open(self.session/'popup-check.png') as image:button=self.game.find_popup_close(image)
+            # A native PNG can outlive the freshness window. Revalidate the
+            # selected game/context after capture, before constructing guards.
+            verified=self.game.request('status');self.check_input(verified,fresh['map'])
+            if (identity is None or self.route_identity(verified)!=identity
+                    or popup_modal_context(verified)!=modal):raise InputPaused('popup_context_changed')
+            self.state=verified
             if button is None:return False
             with self.guarded_actions('popup_close'):self.game.click_game(self.window,*button)
             self.wait(.15)
@@ -267,6 +282,7 @@ class Supervisor:
             'quest':{k:self.quest.get(k) for k in ('chapter','step','target_map','required_action','next_action')},
             'cycles':self.cycles,'actions':self.actions,'progress_events':self.progress_events,
             'battle_space_enabled':self.battle_space,'codex_repair_enabled':self.repair_manager is not None,
+            'background_input_enabled':self.state.get('native_background_input') is True,
             'cached_route_available':self.cached_route is not None,'post_battle_recovery':self.post_battle_since is not None,
             'no_progress_cycles':self.no_progress,'wait_seconds':round(wait_seconds,2),**extra}
         temporary=self.session/'autoplay-state.tmp';temporary.write_text(json.dumps(report,indent=2)+'\n')
@@ -283,15 +299,18 @@ class Supervisor:
         if self.window is None:
             with self.game.navigation_lease():
                 candidate=self.window_factory(self.expected_pid)
-                try:candidate.focus()
+                try:
+                    if self.state.get('native_background_input') is not True:candidate.focus()
                 except Exception:candidate.close();raise
                 self.window=candidate
-        if not self.window.focused():raise InputPaused('focus_lost')
+        if self.state.get('native_background_input') is not True and not self.window.focused():raise InputPaused('focus_lost')
 
     def check_input(self,state=None,expected_map=None):
         self.check_stop()
         if self.latest_source.resolve()!=self.session:raise InputPaused('session_changed')
-        if not self.window or not self.window.focused():raise InputPaused('focus_lost')
+        if not self.window:raise InputPaused('input_unavailable')
+        current=self.state if state is None else state
+        if current.get('native_background_input') is not True and not self.window.focused():raise InputPaused('focus_lost')
         if state is not None:
             if not self.game.fresh_state(state):raise InputPaused('stale_state')
             if state.get('phase')!='world':raise InputPaused('screen_changed')
@@ -308,13 +327,14 @@ class Supervisor:
         owner=self
         expected_map=self.state['map'];expected_quest=self.game._quest_step(self.state)
         expected_route_identity=self.route_identity(self.state)
+        expected_popup_modal=popup_modal_context(self.state)
         expected_modal='battle' if (self.state.get('battle') or {}).get('active') else 'story'
         g_presses=0
         class FocusGuard:
             def __init__(self,window):self.window=window
             def __getattr__(self,name):return getattr(self.window,name)
             def focus(self):
-                if not self.window.focused():raise InputPaused('focus_lost')
+                owner.check_input()
         def factory(pid):
             owner.check_input()
             if pid!=owner.expected_pid:raise InputPaused('session_changed')
@@ -327,6 +347,7 @@ class Supervisor:
                 if action in ('cached_recovery','popup_close'):
                     owner.check_input(result,expected_map)
                     if owner.route_identity(result)!=expected_route_identity:raise InputPaused('cached_route_changed')
+                    if action=='popup_close' and popup_modal_context(result)!=expected_popup_modal:raise InputPaused('popup_context_changed')
                 owner.remember_route(result)
             return result
         def press(window,key):

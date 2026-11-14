@@ -22,6 +22,8 @@ public final class ControlBridge implements AutoCloseable {
     private final ServerSocketChannel server;
     private final Thread thread;
     private volatile boolean closed;
+    private Object backgroundWindow;
+    private static long nativeInputGeneration;
     private final Gson JSON = new Gson();
 
     private ControlBridge(Path path) throws IOException {
@@ -72,6 +74,7 @@ public final class ControlBridge implements AutoCloseable {
 
     private JsonElement dispatch(JsonObject request) throws Exception {
         String operation=request.get("op").getAsString();
+        if(operation.equals("capture"))return onRender(()->capture(request));
         if(operation.equals("export_world")) {
             java.util.concurrent.atomic.AtomicReference<Object> assets=new java.util.concurrent.atomic.AtomicReference<>();
             onRender(()->{
@@ -136,10 +139,9 @@ public final class ControlBridge implements AutoCloseable {
                         throw new IllegalStateException("World input is blocked by an interaction or battle");
                     if(request.has("expected_map") && !request.get("expected_map").equals(snapshot.get("map")))
                         throw new IllegalStateException("Map changed before movement");
-                    long handle=windowHandle();
-                    int focused=(Integer)Class.forName("org.lwjgl.glfw.GLFW")
-                            .getMethod("glfwGetWindowAttrib",long.class,int.class).invoke(null,handle,0x00020001);
-                    if(focused!=1)throw new IllegalStateException("Game window lost focus");
+                    guardProcess(request);
+                    // Input is scoped to this process/window's backend callbacks;
+                    // background operation never activates a desktop window.
                     for(int key:keys)key(key,1);
                     return snapshot;
                 });
@@ -208,6 +210,10 @@ public final class ControlBridge implements AutoCloseable {
         JsonArray nativeKeys=new JsonArray();
         for(String name:new String[]{"space","enter","g","x"})nativeKeys.add(name);
         output.add("native_key_input",nativeKeys);output.addProperty("native_click_input",true);
+        output.addProperty("native_background_input",backgroundWindow!=null);
+        output.addProperty("native_capture",true);
+        output.add("window_focused",windowAttribute(0x00020001));
+        output.add("window_minimized",windowAttribute(0x00020002));
         output.addProperty("movement_ready","world".equals(output.get("phase").getAsString())
                 && current!=null && current.getClass().getName().equals("aj") && movementReady(current));
         if(current!=null && current.getClass().getName().equals("aj") && output.has("main_quest") && !output.get("main_quest").isJsonNull()) {
@@ -397,16 +403,89 @@ public final class ControlBridge implements AutoCloseable {
             throw new IllegalStateException("Map changed before UI input");
         if(request.has("expected_pid") && request.get("expected_pid").getAsLong()!=snapshot.get("pid").getAsLong())
             throw new IllegalStateException("Game process changed before UI input");
-        int focused=(Integer)Class.forName("org.lwjgl.glfw.GLFW")
-                .getMethod("glfwGetWindowAttrib",long.class,int.class).invoke(null,windowHandle(),0x00020001);
-        if(focused!=1)throw new IllegalStateException("Game window lost focus");
+        guardProcess(request);
         return snapshot;
+    }
+    private static void guardProcess(JsonObject request) {
+        if(request.has("expected_pid") && request.get("expected_pid").getAsLong()!=ProcessHandle.current().pid())
+            throw new IllegalStateException("Game process changed before native operation");
+    }
+    private static JsonElement windowAttribute(int attribute) {
+        try {
+            int value=(Integer)Class.forName("org.lwjgl.glfw.GLFW")
+                    .getMethod("glfwGetWindowAttrib",long.class,int.class).invoke(null,windowHandle(),attribute);
+            return new JsonPrimitive(value==1);
+        }catch(Exception unavailable){return JsonNull.INSTANCE;}
+    }
+    private void installBackgroundInput() throws Exception {
+        Object input=Class.forName("com.badlogic.gdx.Gdx").getField("input").get(null);
+        Object window=get(input,"window");
+        if(backgroundWindow==window)return;
+        Object graphics=Class.forName("com.badlogic.gdx.Gdx").getField("graphics").get(null);
+        // The shipped LWJGL backend renders continuous windows while minimized,
+        // but skips input.update/prepareNext. Its window runnables execute before
+        // render, so drain callbacks there only while the backend skips them.
+        graphics.getClass().getMethod("setContinuousRendering",boolean.class).invoke(graphics,true);
+        Method post=window.getClass().getMethod("postRunnable",Runnable.class);
+        Runnable pump=new Runnable(){public void run(){
+            if(closed || backgroundWindow!=window)return;
+            try {
+                if((Boolean)get(window,"iconified")) {
+                    invoke(input,"update",new Class<?>[0]);
+                    long consumedGeneration=nativeInputGeneration;
+                    // Clear one-frame flags after rendering, as the ordinary
+                    // backend does. A later native callback in the app queue
+                    // belongs to the next frame and must retain its flags.
+                    Object app=application();
+                    app.getClass().getMethod("postRunnable",Runnable.class).invoke(app,(Runnable)()->{
+                        try {
+                            if(nativeInputGeneration==consumedGeneration && (Boolean)get(window,"iconified"))
+                                invoke(input,"prepareNext",new Class<?>[0]);
+                        }catch(Exception unavailable){backgroundWindow=null;}
+                    });
+                }
+                post.invoke(window,this);
+            }catch(Exception unavailable){backgroundWindow=null;}
+        }};
+        backgroundWindow=window;
+        try{post.invoke(window,pump);}catch(Exception error){backgroundWindow=null;throw error;}
+    }
+    private JsonObject capture(JsonObject request)throws Exception {
+        guardProcess(request);
+        Object graphics=Class.forName("com.badlogic.gdx.Gdx").getField("graphics").get(null);
+        int width=(Integer)graphics.getClass().getMethod("getBackBufferWidth").invoke(graphics);
+        int height=(Integer)graphics.getClass().getMethod("getBackBufferHeight").invoke(graphics);
+        if(width<=0 || height<=0 || width>8192 || height>8192 || (long)width*height>16777216)
+            throw new IllegalStateException("No valid game framebuffer dimensions");
+        // Application postRunnable executes after window.update's render/swap.
+        // Read the completed front buffer, never the undefined next back buffer.
+        Class<?> gl=Class.forName("org.lwjgl.opengl.GL11");
+        Method readBuffer=gl.getMethod("glReadBuffer",int.class);
+        int previous=(Integer)gl.getMethod("glGetInteger",int.class).invoke(null,0x0C02);
+        byte[] pixels;
+        try {
+            readBuffer.invoke(null,0x0404); // GL_FRONT
+            pixels=(byte[])Class.forName("com.badlogic.gdx.utils.ScreenUtils")
+                    .getMethod("getFrameBufferPixels",int.class,int.class,int.class,int.class,boolean.class)
+                    .invoke(null,0,0,width,height,true);
+        }finally{readBuffer.invoke(null,previous);}
+        if(pixels.length!=(long)width*height*4)throw new IllegalStateException("Incomplete game framebuffer");
+        java.awt.image.BufferedImage image=new java.awt.image.BufferedImage(width,height,java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        int[] argb=new int[width*height];
+        for(int index=0,offset=0;index<argb.length;index++,offset+=4)
+            argb[index]=((pixels[offset+3]&255)<<24)|((pixels[offset]&255)<<16)|((pixels[offset+1]&255)<<8)|(pixels[offset+2]&255);
+        image.setRGB(0,0,width,height,argb,0,width);
+        ByteArrayOutputStream bytes=new ByteArrayOutputStream();
+        if(!javax.imageio.ImageIO.write(image,"png",bytes))throw new IOException("PNG encoder unavailable");
+        JsonObject result=new JsonObject();result.addProperty("png_base64",java.util.Base64.getEncoder().encodeToString(bytes.toByteArray()));
+        result.addProperty("width",width);result.addProperty("height",height);result.addProperty("pid",ProcessHandle.current().pid());return result;
     }
     private static void mouse(Object input,int x,int y,int action)throws Exception {
         // Follow the backend's normal event path: the UI polls getX/getY each
         // frame, so calling InputProcessor.touchDown alone loses the position.
         // These callbacks update only this game's input state/event queue; they
         // never move the host pointer or generate a desktop mouse event.
+        nativeInputGeneration++;
         Object cursor=get(input,"cursorPosCallback"),button=get(input,"mouseButtonCallback");
         Method position=cursor.getClass().getMethod("invoke",long.class,double.class,double.class);
         Method click=button.getClass().getMethod("invoke",long.class,int.class,int.class,int.class);
@@ -441,6 +520,7 @@ public final class ControlBridge implements AutoCloseable {
         if(failure!=null)throw failure;
     }
     private static void key(int key,int action) throws Exception {
+        nativeInputGeneration++;
         Object input=Class.forName("com.badlogic.gdx.Gdx").getField("input").get(null);
         long handle=windowHandle();
         invoke(input,"keyCallback",new Class<?>[]{long.class,int.class,int.class,int.class,int.class},handle,key,0,action,0);
@@ -465,7 +545,9 @@ public final class ControlBridge implements AutoCloseable {
         CompletableFuture<JsonElement> result=new CompletableFuture<>();
         app.getClass().getMethod("postRunnable",Runnable.class).invoke(app,(Runnable)()->{
             if(result.isCancelled())return;
-            try {result.complete(action.run());}catch(Throwable error){result.completeExceptionally(error);}
+            try {
+                try{installBackgroundInput();}catch(Exception unavailable){backgroundWindow=null;}
+                result.complete(action.run());}catch(Throwable error){result.completeExceptionally(error);}
         });
         try {return result.get(8,TimeUnit.SECONDS);}
         catch(TimeoutException error){if(cancelOnTimeout)result.cancel(false);throw error;}

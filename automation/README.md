@@ -40,6 +40,10 @@ uv run --locked automation.py --status
 uv run --locked automation.py --stop
 ```
 
+For background/minimized operation, the same entry loads a bridge with `native_background_input: true` and `native_capture: true`; status reports `background_input_enabled: true`. Input and framebuffer screenshots do not activate the game. An older installation needs one rebuild/restart/login, handled by the entry when private credentials and build tools are ready. Keep the desktop session, game process and OpenGL context running. This is not a headless mode, and logout/suspend operation is not promised. Legacy bridges retain focus/capture guards until reloaded.
+
+A live four-cycle check stayed minimized/unfocused, closed the known local popup and moved with changing native screenshots (four actions, three progress events). Capture is followed by fresh PID/map/quest validation before click or movement. This verifies that observed background workflow, not every objective; the game-derived close template and private session proof are excluded from this source kit.
+
 The explicit build steps below remain available for diagnosis or a manual setup:
 
 ```bash
@@ -50,7 +54,7 @@ bash linux/native/build-executable.sh
 ./DW3-Online-Linux --check
 ```
 
-The Python lock supplies Pillow. Build/runtime dependencies remain separate: Linux x86_64, JDK 21 tools, GCC, Android SDK `apksigner`, the matching original APK, Linux LWJGL native JARs, and your graphical X11 desktop. Window lookup, focus and screenshots require `xwininfo`, `xprop`, and libX11. Routine keys and popup clicks use private game callbacks; libXtst and desktop keyboard/mouse injection are not required. See the port playbook for Linux-port preparation; the original Windows runtime cannot run on Linux.
+The Python lock supplies Pillow. Build/runtime dependencies remain separate: Linux x86_64, JDK 21 tools, GCC, Android SDK `apksigner`, the matching original APK, Linux LWJGL native JARs, and a running graphical desktop/OpenGL context. Legacy window lookup/focus/capture requires `xwininfo`, `xprop`, and libX11; the current native input/capture path does not open an X11 control connection. Routine keys and popup clicks use private game callbacks; libXtst and desktop keyboard/mouse injection are not required. See the port playbook for Linux-port preparation; the original Windows runtime cannot run on Linux.
 
 The former host XTest path could trigger GNOME's Remote Desktop permission dialog during battle input. The maintained controller sends allowlisted keys through the game's GLFW callback and clicks through its input processor in window-local coordinates. It does not move the host pointer or request desktop sharing for those actions. `status` must report `native_key_input` and `native_click_input: true`; an older loaded bridge fails instead of falling back to host input.
 
@@ -64,7 +68,7 @@ uv run --locked python ai-game.py login --restart
 uv run --locked python ai-game.py status
 ```
 
-Run these commands in the installed game directory. The restart closes that monitored game and logs in again; configure private credentials first. Verify the capability fields and intended PID before resuming. Focus, map/session and modal guards still apply.
+Run these commands in the installed game directory. The restart closes that monitored game and logs in again; configure private credentials first. Verify the capability fields and intended PID before resuming. Map/session and modal guards remain; legacy bridges retain the focus guard.
 
 Configure credentials privately, or use the hidden prompt:
 
@@ -89,9 +93,9 @@ uv run --locked python autoplay.py --status
 uv run --locked python autoplay.py --stop
 ```
 
-There is no default time limit. `--max-cycles 3` gives a bounded run. Focus loss, invalid state, unsupported objectives, incomplete telemetry, and story choices can pause the controller. A running process does not prove quest progress or guarantee completion of every quest. Stop commands act on the monitored session; specify `--session /original/session/path` if `latest` has changed.
+There is no default time limit. `--max-cycles 3` gives a bounded run. Invalid state, unsupported objectives, incomplete telemetry and story choices can pause the controller; legacy bridges also pause on focus loss. A running process does not prove quest progress or guarantee completion of every quest. Stop commands act on the monitored session; specify `--session /original/session/path` if `latest` has changed.
 
-If startup opens the game but movement stops, inspect `uv run --locked automation.py --status`. Resized-window captures now refresh geometry and trap X11 errors as a recoverable `window_unavailable` pause; restore/focus the same window. The planner can make a short clear-foot escape from its extra collision margin only when it lands back in full padded clearance. Missing routes remain bounded stops, and blocked cached routes back off for 60 seconds. These changes recovered the recorded startup case without weakening normal terrain checks.
+If startup opens the game but movement stops, inspect `uv run --locked automation.py --status`. Resized-window captures now refresh geometry and trap X11 errors as a recoverable `window_unavailable` pause; restore/focus that window when using the legacy capture path. The planner can make a short clear-foot escape from its extra collision margin only when it lands back in full padded clearance. Missing routes remain bounded stops, and blocked cached routes back off for 60 seconds. These changes recovered the recorded startup case without weakening normal terrain checks.
 
 Map and quest exports must be generated locally, after login, when wanted:
 
@@ -118,7 +122,7 @@ After installing into your own prepared game, building the adapter/runtime, and 
 uv run --locked python -B -m unittest discover -s linux/native/tests -p 'test_*.py' -q
 ```
 
-The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The startup recovery revision passed 162 local automation tests and 8 installer tests. A two-cycle live check moved from map `s205` to `s330`; an intentionally invalid X11 capture was caught, and the next capture succeeded. Live results belong to the original inspected installation; verify your own setup separately.
+The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The minimized-operation revision passed 181 local automation tests and 8 installer tests. The four-cycle background check above verified popup closure and movement while minimized. Earlier startup recovery checks moved from map `s205` to `s330` and recovered from an intentionally invalid X11 capture. Live results belong to the original inspected installation; verify your own setup separately.
 
 ## Maintainers
 

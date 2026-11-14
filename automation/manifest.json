@@ -13,7 +13,7 @@
     },
     {
       "path": "AI-GAME-CONTROL.md",
-      "sha256": "c69c151f8ccc7e33f8793c4fc9f655f07f2d0aee90534696c073f360abbef213",
+      "sha256": "0f55342505f01462b20b6dde75f7eb077e40488ae69befe6f1d53cfae87306a7",
       "mode": 420
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "ba25903fda12f4b797a2e6b105955ef8fe09c5bab3fd249ad6d2290774cfbd28",
+      "sha256": "b4cfe453c93981b421e602cdb2e50d70b0fb5e7b21d8b970f08e256179408910",
       "mode": 420
     },
     {
@@ -53,17 +53,17 @@
     },
     {
       "path": "ai-game.py",
-      "sha256": "9705386d806a6a95a874df6c892fd00c66b635442edc16ab75644874b8184525",
+      "sha256": "2b19e4acff0c4d741289a8eb972ca8c997acc97ba1a94af511c7cc5c53edb465",
       "mode": 493
     },
     {
       "path": "automation.py",
-      "sha256": "c9f1bfa310c528e506b5546764e79152204de8cdbc11e8df09b73f9d47cc40aa",
+      "sha256": "736629adf6dd87627558075327529b40c8fb29494111930b97c618ccddbbe286",
       "mode": 420
     },
     {
       "path": "autoplay.py",
-      "sha256": "c7b46c8ce55d56aeb35a745266237d509071cd06629b742890f26f945ac36cab",
+      "sha256": "3b13dfb71236cf83e3a8b882193f8b068a44baa4222f9a877daaea004c36dd3b",
       "mode": 420
     },
     {
@@ -78,7 +78,7 @@
     },
     {
       "path": "game-control.py",
-      "sha256": "e7679871abe562913b2a3a4e7bf1dedd437fa29e2a4ade3b40e1a501b260ab8e",
+      "sha256": "23c272d04ebfa9a9d457917e7b412f244cf611b989cbebbf0199d1143db6634b",
       "mode": 493
     },
     {
@@ -128,7 +128,7 @@
     },
     {
       "path": "linux/native/src/dw3/linux/ControlBridge.java",
-      "sha256": "d15793d4cdbee49731088e923ab3936529e7feb10284f5ceb7540a44ac42dfbd",
+      "sha256": "2280e0419d286a0486a2708aba6526c8e15de7c1f3a1a66b7fbb4bca2c86a22a",
       "mode": 420
     },
     {
@@ -153,12 +153,12 @@
     },
     {
       "path": "linux/native/tests/test_automation_entry.py",
-      "sha256": "fc6cd09cc5588a82c418d6a8b39af926a481ec1dcbedff48b0a12a025a6241d2",
+      "sha256": "5d59174d23d8396c3ae454ca8beb319c954c781d102cc7d904cd75f78beb72ab",
       "mode": 420
     },
     {
       "path": "linux/native/tests/test_autoplay.py",
-      "sha256": "972c0e493580687ce9cfca812dfde64d5b576aeb74912a94a4b1b811c73f9f84",
+      "sha256": "1b85fdb246a45fdb7ffd2101d0f6bc1b589f26d35283c231d1e79897d77b2792",
       "mode": 420
     },
     {
@@ -198,7 +198,7 @@
     },
     {
       "path": "linux/native/tests/test_game_input_ipc.py",
-      "sha256": "b73c5dd558b2ece0f671bb8548b5a87005a1910029b4bdcce6dabe1062c61589",
+      "sha256": "41634538b9e65eeea84b0046536cef019ac6453f3f60374cd265d784a67d3b4c",
       "mode": 420
     },
     {
@@ -218,7 +218,7 @@
     },
     {
       "path": "linux/native/tests/test_native_keys.py",
-      "sha256": "9d35f824c8f97d1773d092ea9bc5980644455ce8bf7df0d85de3f422020e2314",
+      "sha256": "a432012a99d4eff0518cfa8c47271e46bdff25547c343f3aa9a09ccef696dd08",
       "mode": 420
     },
     {
@@ -258,7 +258,7 @@
     },
     {
       "path": "linux/native/tests/test_scene.py",
-      "sha256": "5c10ce639a3001c5022c4f2f54760bfc6c38e30bac103548c4b1911c75b8220d",
+      "sha256": "391d510fc9027df67e58edf6f12bd0de9f661b89598b9318fc8e361fb3b3a697",
       "mode": 420
     },
     {
@@ -298,7 +298,7 @@
     },
     {
       "path": "linux/native/tests/test_window_capture.py",
-      "sha256": "bbcec0c7eb26549b79100ad4287fed4b457b79fb2d460121e2b754c60f05f31f",
+      "sha256": "bd97289d0f2123fc9f9f1056e5f097722bc822949a23d01c20aa6005348ce65b",
       "mode": 420
     },
     {
@@ -343,7 +343,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "ba1fb1ef5a6c0aa71b5cd9078ea47eb0f1d5ecde30e2ae8875a37101dbfe353c",
+      "sha256": "e89c8d6d2f896a4229c399a97b1131ce58c6b8fd341a3cb60783e57b2f7f2e4f",
       "mode": 420
     },
     {
@@ -353,7 +353,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "34f9d5416b2b32444d650f84565ac3230ddc08480a2a235d739afbbbcacf23f1",
+      "sha256": "e2a32123fb186cc30e1f7c15608522aece99c423e45f66dfbb7d803e889fee27",
       "mode": 420
     },
     {

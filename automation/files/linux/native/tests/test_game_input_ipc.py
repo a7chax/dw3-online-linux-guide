@@ -1,7 +1,7 @@
 from datetime import datetime,timezone
 import importlib.util
 from pathlib import Path
-import sys,unittest
+import sys,tempfile,unittest
 from unittest.mock import patch,call
 
 ROOT=Path(__file__).resolve().parents[3];sys.path.insert(0,str(ROOT))
@@ -18,6 +18,32 @@ def world():
             'native_key_input':['space','enter','g','x'],'native_click_input':True}
 
 class InputTests(unittest.TestCase):
+    def test_move_rejects_replaced_process_before_sending_input(self):
+        state={**world(),'native_background_input':True}
+        with patch.object(game,'request',return_value=state) as request:
+            with self.assertRaisesRegex(RuntimeError,'session changed'):
+                game.move('right',50,focus=False,quiet=True,expected_map='s370',expected_pid=456)
+        self.assertEqual(request.call_args_list,[call('status')])
+
+    def test_background_move_is_pid_bound_without_constructing_desktop_window(self):
+        state={**world(),'native_background_input':True,'x':10,'y':10}
+        after={**state,'x':20}
+        with tempfile.TemporaryDirectory() as td,patch.object(game,'LATEST',Path(td)),\
+             patch.object(game,'request',side_effect=[state,{'before':state,'after':after}]) as request,\
+             patch('game_control.GameWindow',side_effect=AssertionError('Background movement needs no desktop window')):
+            result=game.move('right',50,quiet=True,expected_map='s370')
+        self.assertTrue(result['moved'])
+        self.assertEqual(request.call_args_list,[call('status'),call('move',direction='right',milliseconds=50,expected_map='s370',expected_pid=123)])
+
+    def test_background_keys_and_clicks_do_not_require_focus(self):
+        class Minimized(Window):
+            def focused(self):raise AssertionError('Native background input must not query desktop focus')
+        state=world();state['native_background_input']=True
+        for action in (lambda:game.press_game_key(Minimized(),'space'),lambda:game.click_game(Minimized(),20,30)):
+            with patch.object(game,'request',side_effect=[state,{}]) as request:
+                action()
+                self.assertEqual(request.call_args_list[1].kwargs['expected_pid'],123)
+
     def test_space_and_enter_use_game_ipc_without_desktop_injection(self):
         for key,native in [('space','space'),('Return','enter'),('g','g'),('x','x')]:
             with self.subTest(key=key),patch.object(game,'request',side_effect=[world(),{}]) as request:

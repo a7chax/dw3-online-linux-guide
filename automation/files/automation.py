@@ -15,7 +15,8 @@ ROOT=Path(__file__).resolve().parent
 
 def native_input(state):
     return bool(state and {'space','enter','g','x'}<=set(state.get('native_key_input') or ())
-                and state.get('native_click_input') is True)
+                and state.get('native_click_input') is True
+                and state.get('native_background_input') is True and state.get('native_capture') is True)
 
 
 def controller_running(session):
@@ -42,7 +43,7 @@ def run(max_cycles=None,*,battle_space=True,repair_with_codex=True,root=ROOT,gam
     except (OSError,ValueError,RuntimeError):before=None
     session=Path(game.LATEST).resolve()
     if controller_running(session):
-        if before and before.get('phase')=='world':
+        if before and before.get('phase')=='world' and before.get('native_background_input') is not True:
             try:
                 with game.navigation_lease():
                     if window_factory is None:

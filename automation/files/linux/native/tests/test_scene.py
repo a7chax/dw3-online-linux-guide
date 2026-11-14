@@ -101,6 +101,18 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(report['reason'],'press_limit');self.assertEqual(len(self.presses),2)
         self.assertGreaterEqual(self.presses[1]-self.presses[0],1)
 
+    def test_slow_background_capture_does_not_consume_space_input_budget(self):
+        self.state['native_background_input']=True;self.window.is_focused=False
+        capture=self.window.screenshot
+        def slow_capture(path):
+            self.clock.sleep(4);capture(path)
+        self.window.screenshot=slow_capture
+        self.after_press=lambda:self.state['main_quest'].update(step=3)
+        report=game.scene(1,1)
+        self.assertEqual(report['presses'],1)
+        self.assertEqual(report['reason'],'quest_progressed')
+        self.assertEqual(self.window.focus_count,0)
+
     def test_time_limit_stops_even_when_press_budget_remains(self):
         report=game.scene(.5,30)
         self.assertEqual(report['reason'],'time_limit');self.assertEqual(len(self.presses),1)
