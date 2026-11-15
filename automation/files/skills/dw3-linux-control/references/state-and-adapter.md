@@ -259,3 +259,9 @@ Live verification of the efficiency correction used a normal attack against an e
 ### Finishing skills before extra probes
 
 A later correction removes the overly strict exploration condition `enemy_hp > 2 * attack_estimate`: an affordable untried skill can now be tested once the normal estimate is insufficient, with the existing DS and enabled-option guards. Known finishing skills are evaluated before an extra normal-attack baseline probe for healthy actors too. A normal attack estimated sufficient still wins over all DS-consuming options; among known skill finishers choose the lowest DS cost. The purpose is to reduce expected enemy responses, not maximize DS savings at the cost of extra exposed turns. No guarantee of hit, damage or acting before an enemy is established.
+
+### Avoid optimistic leave-and-return shortcuts
+
+Future world-hint legs use geometric estimates, so an apparent shortcut could leave the current spot and re-enter near its goal, repeatedly choosing the same two-map cycle after replanning. The planner now prunes a return to the exact initial logical spot/map when its original position can already reach that re-entry region through the collision map. A truly disconnected same-map region retains its detour; distinct logical maze spots and map aliases are not collapsed.
+
+The observed Mirage Tower plan changed from the desert exit near `(770,589)` to the direct hall entrance `(644,250)`. Live automation subsequently entered Mirage Hall. Mobius Desert required a bounded assisted maze escape before that check; its repeated room IDs have missing world-hint links. The hall innkeeper then remained unreachable from the observed entry component and was excluded after bounded attempts. Do not claim a completed revival or a fully autonomous maze/inn loop from this evidence.

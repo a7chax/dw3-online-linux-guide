@@ -75,6 +75,32 @@ class InnRouteTests(unittest.TestCase):
         self.assertFalse(routes.is_inn_dialogue('inn',None))
         self.assertFalse(routes.is_inn_dialogue('inn',{'text_file':6}))
 
+    def shortcut_fixture(self):
+        root=self.fixture();p=root/'auxiliary/worldmap/world.json';data=json.loads(p.read_text());w=data['worlds'][0]
+        w['spots'][0]['ids']=['a'];w['spots'][0]['at']=[[0,0]]
+        w['spots'][1]['pois']=[]
+        w['links']=[[0,115,140,1,310,140],[1,320,140,0,175,140]]
+        w['doors']=[{'spot':0,'x':180,'y':140,'ids':['inn'],'pois':[[2,1]]}]
+        p.write_text(json.dumps(data));return root
+
+    def test_reachable_inn_does_not_take_optimistic_return_shortcut(self):
+        route=InnRoutes(self.shortcut_fixture()).plan('a',10,40)
+        self.assertEqual([leg['map'] for leg in route['legs']],['a','inn'])
+        self.assertEqual((route['legs'][0]['x'],route['legs'][0]['y']),(80,40))
+
+    def test_disconnected_current_map_can_still_use_real_detour(self):
+        root=self.shortcut_fixture();image=Image.new('L',(100,80),255)
+        ImageDraw.Draw(image).rectangle((40,0,50,79),fill=0);image.save(root/'a.png')
+        route=InnRoutes(root).plan('a',10,40)
+        self.assertEqual([leg['map'] for leg in route['legs']],['a','b','a','inn'])
+
+    def test_actual_mirage_tower_chooses_hall_entrance_if_exported(self):
+        root=Path(__file__).resolve().parents[3]/'linux/world'
+        if not (root/'auxiliary/worldmap/world.json').exists():self.skipTest('Optional original assets not exported')
+        route=InnRoutes(root).plan('s645',731.8292,566.1649)
+        self.assertEqual((route['legs'][0]['x'],route['legs'][0]['y']),(644,250))
+        self.assertEqual(route['legs'][0]['expected_next_maps'],['s650'])
+
     def test_actual_catalog_if_exported(self):
         root=Path(__file__).resolve().parents[3]/'linux/world'
         if not (root/'auxiliary/worldmap/world.json').exists():self.skipTest('Optional original assets not exported')

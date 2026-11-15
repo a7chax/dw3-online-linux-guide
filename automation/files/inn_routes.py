@@ -147,6 +147,12 @@ class InnRoutes:
                 candidates=[(m,p) for m,p in candidates if self._contains(m,p)]
                 expected=[m for m,_ in candidates]
                 for next_map,next_position in candidates:
+                    # Future geometric costs can make leaving and returning
+                    # look cheaper than walking across the current map. Only
+                    # retain that detour when the arrival region is genuinely
+                    # disconnected from our original position.
+                    if (destination==start and next_map==map_id
+                            and math.isfinite(cost(map_id,position,next_position,True))):continue
                     leg={'map':current,'x':target[0],'y':target[1],'kind':'exit','expected_next_maps':expected}
                     heapq.heappush(queue,(score,next(counter),destination,next_map,next_position,legs+[leg]))
         return min(choices,key=lambda r:(r['cost'],r['inn_id'])) if choices else None
