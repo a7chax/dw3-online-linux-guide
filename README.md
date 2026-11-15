@@ -37,7 +37,16 @@ The installer copies source files. It does not download the game, build it, log 
 Follow [automation/README.md](automation/README.md) for the manifest, backups, native build, locked Python environment, and automation commands.
 Keep your original game inputs and private `.env` local.
 
-After the kit is installed and the original inputs/dependencies and private credentials are ready, run `uv run --locked automation.py` from the game directory. It handles conditional builds, monitored login/reuse and persistent control. Use the same entry with `--status` or `--stop` to inspect or stop it without setup or game input. See the kit guide for supported states and limits.
+After the kit is installed and the original inputs/dependencies and private credentials are ready, select an activity from the game directory:
+
+```bash
+uv run --locked automation.py main-quest
+uv run --locked automation.py fishing
+```
+
+Use one command at a time. A different activity stops the previous controller before it starts. Bare `automation.py` defaults to the main quest. The optional `after-loss` activity switches to fishing after the next confirmed battle loss. Fishing uses Diverlake, reads the 15-to-zero bait count, finishes the current catch at zero, then leaves and returns to refresh the pool. It aims for a good reel window for up to two seconds, then makes a guarded best-effort attempt.
+
+The entry handles conditional builds, monitored login/reuse and persistent control. Use `uv run --locked automation.py --status` or `--stop` to inspect or stop it without setup or game input. See the [kit guide](automation/README.md) for verified behavior and limits.
 
 The instructions use ASD-STE100 Issue 9 style.
 No automated STE dictionary check was available.

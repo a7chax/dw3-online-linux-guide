@@ -272,7 +272,7 @@ public final class ControlBridge implements AutoCloseable {
         output.addProperty("native_background_input",backgroundWindow!=null);
         output.addProperty("native_capture",true);
         output.addProperty("native_inn_recovery",true);
-        output.addProperty("native_battle_control",true);output.addProperty("native_supplies_control",true);output.addProperty("native_fishing_control",true);
+        output.addProperty("native_battle_control",true);output.addProperty("native_supplies_control",true);output.addProperty("native_fishing_control",true);output.addProperty("native_fishing_attempt",true);
         output.add("window_focused",windowAttribute(0x00020001));
         output.add("window_minimized",windowAttribute(0x00020002));
         output.addProperty("movement_ready","world".equals(output.get("phase").getAsString())

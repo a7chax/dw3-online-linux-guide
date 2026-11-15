@@ -141,6 +141,22 @@ class TacticalIntegrationTests(unittest.TestCase):
    with sup.guarded_actions('fishing_travel'):self.game.request('status')
   self.assertEqual(self.game.actions,[])
 
+ def test_hard_reel_budget_dispatches_native_best_effort_attempt(self):
+  s=world();s.update(map='s380',x=835.5,y=524.5,native_fishing_control=True,native_fishing_attempt=True)
+  s['fishing']={'telemetry_complete':True,'can_reel':True,'active':True,'fishing_type':1,'reel_good':False,'state_token':'hard-1'}
+  sup=self.supervisor(s);sup.fishing_goal.saved.update(mode='diverlake_fishing',losses=1)
+  sup.fishing_goal.decide(s);self.clock.now=3
+  sup.state=copy.deepcopy(s);sup.expected_pid=123;sup.ensure_window();original=self.game.request
+  def request(op,**kwargs):
+   if op=='fishing_step':
+    self.game.actions.append((op,kwargs));return {'plan':{'key':'space','reason':'fishing_reel_attempt_ready'},'after':copy.deepcopy(s)}
+   return original(op,**kwargs)
+  self.game.request=request
+  report=sup.perform_fishing_action('fishing_reel_attempt')
+  self.assertEqual(self.game.actions[0][1]['mode'],'reel_attempt')
+  self.assertEqual(self.game.actions[0][1]['expected_state_token'],'hard-1')
+  self.assertEqual(report['reason'],'fishing_reel_attempt_ready')
+
  def test_battle_choice_rejects_map_change_before_native_dispatch(self):
   sup=self.supervisor(combat());sup.state=copy.deepcopy(self.state);sup.expected_pid=123;sup.ensure_window()
   decision={'option_index':1,'expected_token':'menu1','battle_id':'b7','kind':'skill','target_group':1}

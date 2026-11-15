@@ -125,4 +125,69 @@ class FishingGoalTests(unittest.TestCase):
         plan=route.plan('s380',340,106,probed=['s380:486.5:571.5'])
         self.assertEqual(plan['legs'][0]['x'],510.5)
 
+    def test_explicit_fishing_starts_without_a_loss(self):
+        goal=FishingGoal(self.session,activity='fishing')
+        self.assertTrue(goal.fishing);self.assertEqual(goal.report()['losses'],0)
+        self.assertEqual(goal.report()['activity'],'fishing')
+    def test_main_quest_mode_ignores_saved_fishing_fallback(self):
+        self.goal.observe(result())
+        goal=FishingGoal(self.session,activity='main-quest');goal.observe(result(battle_id='other'))
+        self.assertFalse(goal.fishing);self.assertEqual(goal.report()['mode'],'main_quest')
+    def test_remaining_bait_is_retained_between_casts(self):
+        s=self.lake(active=True,fishing_type=0,cast_count=15)
+        self.goal.decide(s);self.assertEqual(self.goal.report()['bait_remaining'],15)
+        s['fishing'].update(active=False,fishing_type=None,cast_count=None)
+        self.goal.decide(s);self.assertEqual(self.goal.report()['bait_remaining'],15)
+        self.assertEqual(FishingGoal(self.session).report()['bait_remaining'],15)
+    def test_zero_bait_finishes_last_reel_then_refreshes_map(self):
+        class Route:
+            def leave_lake(self,*args):return {'kind':'exit','x':100,'y':100,'expected_next_maps':['s375']}
+        s=self.lake(active=True,fishing_type=0,cast_count=0,can_reel=True,reel_good=True)
+        self.goal.router=Route()
+        self.assertEqual(self.goal.decide(s)['action'],'fishing_reel')
+        self.assertEqual(self.goal.report()['bait_remaining'],0)
+        s['fishing'].update(active=True,fishing_type=None,cast_count=None,can_reel=False,can_cast=True)
+        decision=self.goal.decide(s)
+        self.assertEqual(decision['action'],'fishing_travel');self.assertTrue(decision['cross_map'])
+        self.assertEqual(decision['reason'],'refresh_exhausted_lake')
+    def test_unknown_bait_is_not_assumed_to_be_fifteen(self):
+        self.goal.decide(self.lake(can_cast=True))
+        self.assertIsNone(self.goal.report()['bait_remaining'])
+        self.assertEqual(self.goal.report()['bait_capacity'],15)
+    def test_actual_exit_clears_stale_bait_and_shore_probes(self):
+        s=self.lake(active=True,fishing_type=0,cast_count=0,can_reel=True,reel_good=True)
+        self.goal.decide(s);self.goal.saved['shore_probes']=['s380:486.5:571.5']
+        class Route:
+            def plan(self,*args,**kwargs):return {'legs':[{'kind':'exit','x':200,'y':200}]}
+        self.goal.router=Route();s['map']='s375';s['fishing']={}
+        self.goal.decide(s)
+        self.assertIsNone(self.goal.report()['bait_remaining'])
+        self.assertEqual(self.goal.saved.get('shore_probes'),[])
+    def test_known_interior_can_use_one_fresh_gps_exit(self):
+        from world_map import NoRouteError
+        class Interior:
+            def plan(self,*args,**kwargs):raise NoRouteError('Interior')
+            def is_interior(self,map_id):return map_id=='s360'
+        goal=FishingGoal(self.session,activity='fishing',router_factory=Interior)
+        s={'pid':123,'phase':'world','map':'s360','x':357,'y':338,'movement_ready':True,
+           'trace':{'enabled':True,'route_type':1,'points':[[422,358]]}}
+        decision=goal.decide(s)
+        self.assertEqual(decision['action'],'fishing_travel');self.assertEqual(decision['destination'],(422,358))
+        self.assertTrue(decision['cross_map'])
+        s['trace']['route_type']=2
+        self.assertIsNone(goal.decide(s)['action'])
+
+    def test_hard_reel_tries_after_two_seconds_without_perfect_window(self):
+        now=[0.]
+        goal=FishingGoal(self.session,activity='fishing',clock=lambda:now[0])
+        s=self.lake(active=True,can_reel=True,fishing_type=1,reel_good=False,cast_count=10)
+        self.assertIsNone(goal.decide(s)['action'])
+        now[0]=1.9;self.assertIsNone(goal.decide(s)['action'])
+        now[0]=2.1;self.assertEqual(goal.decide(s)['action'],'fishing_reel_attempt')
+        s['fishing']['state_token']='new-cast'
+        self.assertIsNone(goal.decide(s)['action'])
+    def test_ready_green_window_is_used_before_reel_deadline(self):
+        goal=FishingGoal(self.session,activity='fishing',clock=lambda:0.)
+        self.assertEqual(goal.decide(self.lake(active=True,can_reel=True,fishing_type=1,reel_good=True))['action'],'fishing_reel')
+
 if __name__=='__main__':unittest.main()

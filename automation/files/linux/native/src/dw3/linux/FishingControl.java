@@ -69,13 +69,16 @@ public final class FishingControl {
     public static JsonObject plan(Object current,String mode,String expectedToken) {
         JsonObject state=snapshot(current),out=new JsonObject();out.add("key",JsonNull.INSTANCE);
         String reason="fishing_not_ready";
-        if(mode==null || !Set.of("cast","reel","exhausted").contains(mode))reason="unsupported_fishing_action";
+        if(mode==null || !Set.of("cast","reel","reel_attempt","exhausted").contains(mode))reason="unsupported_fishing_action";
         else if(!state.get("telemetry_complete").getAsBoolean())reason="fishing_telemetry_unavailable";
         else if(expectedToken==null || !state.get("state_token").getAsString().equals(expectedToken))reason="fishing_state_changed";
         else {
             boolean ready=switch(mode) {
                 case "cast" -> state.get("can_cast").getAsBoolean();
                 case "reel" -> state.get("can_reel").getAsBoolean() && state.get("reel_good").getAsBoolean();
+                // Explicit best-effort policy may stop waiting for a perfect
+                // window; all original submission/modal guards still apply.
+                case "reel_attempt" -> state.get("can_reel").getAsBoolean();
                 default -> state.get("can_reel").getAsBoolean() && !state.get("fishing_type").isJsonNull() && state.get("fishing_type").getAsInt()==8;
             };
             if(ready) {out.addProperty("key","space");reason="fishing_"+mode+"_ready";}

@@ -112,7 +112,7 @@ def fingerprint(state):
 class Supervisor:
     def __init__(self,game,session,window_factory=None,expected_pid=None,scene_targets=(),
                  stop_file=None,clock=time.monotonic,sleep=time.sleep,
-                 repair_with_codex=False,repair_manager=None,battle_space=False,close_popups=True):
+                 repair_with_codex=False,repair_manager=None,battle_space=False,close_popups=True,activity='after-loss'):
         self.game=game;self.session=Path(session).resolve();self.latest_source=Path(game.LATEST)
         self.game.LATEST=self.session
         if window_factory is None:
@@ -141,7 +141,7 @@ class Supervisor:
         self.close_popups=bool(close_popups);self.last_popup_check=-math.inf
         self.repair_manager=repair_manager
         from fishing_goal import FishingGoal
-        self.fishing_goal=FishingGoal(self.session);self.fishing_decision=None
+        self.fishing_goal=FishingGoal(self.session,activity=activity,clock=self.clock);self.fishing_decision=None
         from inn_recovery import InnRecovery
         self.inn_recovery=InnRecovery(self.session,clock=self.clock);self.inn_decision=None
         from stall_watch import StallWatch
@@ -317,7 +317,7 @@ class Supervisor:
             'cycles':self.cycles,'actions':self.actions,'progress_events':self.progress_events,
             'battle_space_enabled':self.battle_space,'codex_repair_enabled':self.repair_manager is not None,
             'background_input_enabled':self.state.get('native_background_input') is True,
-            'inn_recovery':self.inn_recovery.report(),'fishing_goal':self.fishing_goal.report(),
+            'inn_recovery':self.inn_recovery.report(),'fishing_goal':self.fishing_goal.report(),'activity':self.fishing_goal.activity,
             'supplies_recovery':self.supplies_recovery.report(),
             'tactical_battle_enabled':self.battle_space and self.state.get('native_battle_control') is True,
             'stall_repair_pending':self.stall_trigger['reason'] if self.stall_trigger else None,
@@ -565,7 +565,7 @@ class Supervisor:
             with self.game.navigation_lease():
                 result=self.game.move(*decision['step'],focus=False,quiet=True,expected_map=fresh['map'],expected_pid=self.expected_pid)
                 return {'reason':'fishing_alignment_attempted','current':result['after']}
-        if action in ('fishing_cast','fishing_reel','fishing_exhausted'):
+        if action in ('fishing_cast','fishing_reel','fishing_reel_attempt','fishing_exhausted'):
             if fresh.get('native_fishing_control') is not True:raise InputPaused('fishing_control_unavailable')
             with self.game.navigation_lease():
                 reply=self.game.request('fishing_step',mode=action.removeprefix('fishing_'),
@@ -783,7 +783,7 @@ class Supervisor:
             self.progress_events+=1;self.no_progress=0;self.cooldown=0
         # Ready story/result pages need not change position or quest. Their
         # freshly verified Space action already has its own one-second bound.
-        elif action in ('battle_choice','battle_back','supplies_step','fishing_cast','fishing_reel','fishing_exhausted'):
+        elif action in ('battle_choice','battle_back','supplies_step','fishing_cast','fishing_reel','fishing_reel_attempt','fishing_exhausted'):
             self.cooldown=0
         elif not (interrupted and action in ('follow','local_recovery','cached_recovery','space')):
             self.no_progress+=1;self.cooldown=self.clock()+min(60,2**min(self.no_progress,6))
@@ -836,6 +836,7 @@ def scene_target(value):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--activity',choices=('main-quest','fishing','after-loss'),default='main-quest')
     parser.add_argument('--session',type=Path,default=LATEST,help='Monitored session directory (resolved once)')
     parser.add_argument('--max-cycles',type=int,help='Bound iterations for a deliberate test run; default is unlimited')
     parser.add_argument('--pid',type=int,help='Require this game PID instead of binding the first fresh world PID')
@@ -859,7 +860,7 @@ def main():
     if args.resume:stop_file.unlink(missing_ok=True)
     def terminate(signum,frame):raise StopRequested('termination_requested')
     signal.signal(signal.SIGTERM,terminate)
-    supervisor=Supervisor(load_game(),session,expected_pid=args.pid,scene_targets=args.scene_target,stop_file=stop_file,repair_with_codex=args.repair_with_codex,battle_space=args.battle_space)
+    supervisor=Supervisor(load_game(),session,expected_pid=args.pid,scene_targets=args.scene_target,stop_file=stop_file,repair_with_codex=args.repair_with_codex,battle_space=args.battle_space,activity=args.activity)
     print(json.dumps({'session':str(session),'state_file':str(session/'autoplay-state.json'),'supervisor_pid':os.getpid()}),flush=True)
     supervisor.run(args.max_cycles)
     if supervisor.restart_requested and not stop_file.exists():

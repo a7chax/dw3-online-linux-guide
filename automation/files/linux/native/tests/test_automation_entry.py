@@ -15,7 +15,7 @@ entry=importlib.util.module_from_spec(spec);spec.loader.exec_module(entry)
 
 def world():
     return {'phase':'world','pid':123,'map':'fixture','native_key_input':['space','enter','g','x'],
-            'native_click_input':True,'native_background_input':True,'native_capture':True,'native_inn_recovery':True,'native_battle_control':True,'native_supplies_control':True,'native_fishing_control':True}
+            'native_click_input':True,'native_background_input':True,'native_capture':True,'native_inn_recovery':True,'native_battle_control':True,'native_supplies_control':True,'native_fishing_control':True,'native_fishing_attempt':True}
 
 class EntryTests(unittest.TestCase):
     def setUp(self):
@@ -44,6 +44,25 @@ class EntryTests(unittest.TestCase):
         state=world();state.pop('native_fishing_control')
         self.assertFalse(entry.native_input(state))
         state['native_fishing_control']=True;self.assertTrue(entry.native_input(state))
+
+    def test_explicit_fishing_command_starts_fishing_activity(self):
+        self.run_entry(max_cycles=1,activity='fishing')
+        self.assertEqual(self.factory.call_args.kwargs['activity'],'fishing')
+    def test_fishing_cli_parses_separate_command(self):
+        with patch.object(sys,'argv',['automation.py','fishing','--max-cycles','1']),patch.object(entry,'run') as run:
+            entry.main()
+        self.assertEqual(run.call_args.kwargs['activity'],'fishing')
+    def test_default_command_starts_main_quest_activity(self):
+        self.run_entry(max_cycles=1)
+        self.assertEqual(self.factory.call_args.kwargs['activity'],'main-quest')
+
+    def test_fishing_command_stops_different_running_activity_before_start(self):
+        import json
+        (self.session/'autoplay-state.json').write_text(json.dumps({'activity':'main-quest'}))
+        with patch.object(entry,'controller_running',side_effect=[True,False,False]):
+            self.run_entry(activity='fishing',max_cycles=1)
+        self.assertEqual(self.factory.call_args.kwargs['activity'],'fishing')
+        self.supervisor.run.assert_called_once_with(1)
 
     def test_existing_world_needs_no_build_and_starts_all_approved_features(self):
         self.run_entry(max_cycles=3)

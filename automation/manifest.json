@@ -13,7 +13,7 @@
     },
     {
       "path": "AI-GAME-CONTROL.md",
-      "sha256": "04de4919a25eec32c505b2f21232b90c7110ba52e6b202693d0ce8425cf58fd9",
+      "sha256": "9dabd22c7f80e99f2f7dbc8cc34881abe18a9357491aff26cf89537cf41da483",
       "mode": 420
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "017bc01aa13f5c95e211fcbe6ba6bdedf119f42c8bbc5084db71ddfa193fa045",
+      "sha256": "b91c24645e8c9bc72eccdbc9be68e9a2cb2eefbdaeffe67e9075cadc1c2e62bf",
       "mode": 420
     },
     {
@@ -58,12 +58,12 @@
     },
     {
       "path": "automation.py",
-      "sha256": "8236e3c1d8a32aa26d85cf455a193cdc41b1296502ebb2e3db710b798dda6490",
+      "sha256": "5e871b90db3fcf76bee1e0adf8b35986244ebb8624e12efde5e2c13099b63ae9",
       "mode": 420
     },
     {
       "path": "autoplay.py",
-      "sha256": "82ce757a34a45248f21a1a96a064eef26772e0cd3d42504f89c99489de2abae8",
+      "sha256": "46a9c107e1500e45dabf265d9453fb95a0b136cc87e7320b6460cdb7d2cddde3",
       "mode": 420
     },
     {
@@ -93,7 +93,7 @@
     },
     {
       "path": "docs/fishing-research.md",
-      "sha256": "e1e2cafce5dda2da4aae935256ba6350de383882b9e592957a6ba902b88ee67f",
+      "sha256": "e2ad952d8ee6f748eee3fc6254081894404e34cc4d60b4c7031d80ce3d398b8d",
       "mode": 420
     },
     {
@@ -113,7 +113,7 @@
     },
     {
       "path": "fishing_goal.py",
-      "sha256": "f131c1c48183854105f42a461db5d5f8c92ad984b87eb29abbf6bdca39f95f74",
+      "sha256": "d9391801ba4ee00265d48ce4a06c45d02ff9f8e461f992bca15a06bfb644b6fd",
       "mode": 420
     },
     {
@@ -188,7 +188,7 @@
     },
     {
       "path": "linux/native/src/dw3/linux/ControlBridge.java",
-      "sha256": "4312246880bea873436b8865071041d5246ea4bc167cdf494a6715ddb495003c",
+      "sha256": "ea32029627d503460f7d81bd0aa96975201f8a27f67697c741c8dc30d1896100",
       "mode": 420
     },
     {
@@ -198,7 +198,7 @@
     },
     {
       "path": "linux/native/src/dw3/linux/FishingControl.java",
-      "sha256": "1e04b11cc3df1580baaba7337e34ce8943aad351d3d2700eb027e0d1cb599955",
+      "sha256": "2dfe16ab8f806ace7498a1b86700bc7e4b6235293ccf8dcaee73682d7fae96eb",
       "mode": 420
     },
     {
@@ -233,7 +233,7 @@
     },
     {
       "path": "linux/native/tests/test_automation_entry.py",
-      "sha256": "bf2a91879c4caadc33251bccabab052de5163bc8d066ef458018938df0239c77",
+      "sha256": "d916379471560c6f7b03e7288cad51639e70270e53c7be54c8d615d654124fd0",
       "mode": 420
     },
     {
@@ -288,12 +288,12 @@
     },
     {
       "path": "linux/native/tests/test_fishing_control.py",
-      "sha256": "07defdcbd5307c1b46ee24f6e0c7d82fa5ef3d55a406cb727285c50a3ca6ebb6",
+      "sha256": "36a2b98857e1ad719ce8008172d97b113c506a213fc5a04dc4f394a2621f110f",
       "mode": 420
     },
     {
       "path": "linux/native/tests/test_fishing_goal.py",
-      "sha256": "d163426a32336f10167908f92bd6531c1896c77222c25e97e669d9cbfcd14ebe",
+      "sha256": "234c87401999e4ee0a34c4bac87ee85e8ade39d8f477c071a6b1b1a50051fae2",
       "mode": 420
     },
     {
@@ -448,7 +448,7 @@
     },
     {
       "path": "linux/native/tests/test_tactical_integration.py",
-      "sha256": "1098ae4d64e64e53ba1b9481a44f4ff6f6645e86f91d2b2e6347348498b4c78f",
+      "sha256": "af7a51958af69bf3f2a5eb0cf238fa374aad04c8995bcab7eab3761a7b1a8db0",
       "mode": 420
     },
     {
@@ -513,7 +513,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "741d059a9d954f184c40ff07f4e6b539ccf12550f664c07db4e8dc37da69e1bb",
+      "sha256": "7fd40cf6298da3ea51b692afac909c85f8e2805794ce44fada4364373b6211ad",
       "mode": 420
     },
     {
@@ -523,7 +523,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "6af748c6a62df697fd24882c4c2ef712951addf3f18bf64e6c1d5ee3b7f5456d",
+      "sha256": "784f98f664e327aed15f0711823274fcbea790480aded04347f1313c34ed1dd2",
       "mode": 420
     },
     {

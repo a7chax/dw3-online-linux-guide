@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 import autoplay
 
 ROOT=Path(__file__).resolve().parent
@@ -19,7 +20,7 @@ def native_input(state):
                 and state.get('native_background_input') is True and state.get('native_capture') is True
                 and state.get('native_inn_recovery') is True
                 and state.get('native_battle_control') is True and state.get('native_supplies_control') is True
-                and state.get('native_fishing_control') is True)
+                and state.get('native_fishing_control') is True and state.get('native_fishing_attempt') is True)
 
 
 def controller_running(session):
@@ -32,7 +33,8 @@ def controller_running(session):
 
 
 def run(max_cycles=None,*,battle_space=True,repair_with_codex=True,root=ROOT,game=None,
-        supervisor_factory=None,runner=None,which=None,window_factory=None):
+        supervisor_factory=None,runner=None,which=None,window_factory=None,activity='main-quest'):
+    if activity not in ('main-quest','fishing','after-loss'):raise ValueError('Unknown automation activity.')
     root=Path(root)
     if not (root/'app/client.jar').is_file():
         raise RuntimeError('Run automation.py from your installed game folder containing app/client.jar.')
@@ -45,6 +47,19 @@ def run(max_cycles=None,*,battle_space=True,repair_with_codex=True,root=ROOT,gam
         if not game.fresh_state(before):before=None
     except (OSError,ValueError,RuntimeError):before=None
     session=Path(game.LATEST).resolve()
+    if controller_running(session):
+        try:
+            previous=json.loads((session/'autoplay-state.json').read_text())
+            current_activity=previous.get('activity')
+            if current_activity is None:
+                current_activity={'main_quest':'main-quest','diverlake_fishing':'fishing'}.get((previous.get('fishing_goal') or {}).get('mode'))
+        except (OSError,ValueError):current_activity=None
+        if current_activity is not None and current_activity!=activity:
+            (session/'autoplay.stop').write_text('activity_change\n')
+            deadline=time.monotonic()+15
+            while controller_running(session):
+                if time.monotonic()>=deadline:raise RuntimeError('Previous activity is still stopping; no second controller was started.')
+                time.sleep(.2)
     if controller_running(session):
         if before and before.get('phase')=='world' and before.get('native_background_input') is not True:
             try:
@@ -95,7 +110,7 @@ def run(max_cycles=None,*,battle_space=True,repair_with_codex=True,root=ROOT,gam
         raise RuntimeError('The monitored game needs the updated native input bridge. Rebuild it and restart the client before automation.')
     session=Path(game.LATEST).resolve();(session/'autoplay.stop').unlink(missing_ok=True)
     supervisor=supervisor_factory(game,session,expected_pid=state['pid'],battle_space=battle_space,
-        repair_with_codex=repair_with_codex,close_popups=True)
+        repair_with_codex=repair_with_codex,close_popups=True,activity=activity)
     result=supervisor.run(max_cycles)
     if supervisor.restart_requested and not (session/'autoplay.stop').exists():
         os.execv(sys.executable,[sys.executable,str(root/'automation.py'),*sys.argv[1:]])
@@ -104,6 +119,7 @@ def run(max_cycles=None,*,battle_space=True,repair_with_codex=True,root=ROOT,gam
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('activity',nargs='?',choices=('main-quest','fishing','after-loss'),default='main-quest',help='Choose main-quest travel or continuous Diverlake fishing')
     modes=parser.add_mutually_exclusive_group()
     modes.add_argument('--status',action='store_true');modes.add_argument('--stop',action='store_true')
     parser.add_argument('--max-cycles',type=int)
@@ -116,7 +132,7 @@ def main():
             sys.argv=[str(ROOT/'autoplay.py'),'--status' if args.status else '--stop'];autoplay.main()
         finally:sys.argv=previous
         return
-    run(args.max_cycles,battle_space=not args.no_battle_space,repair_with_codex=not args.no_codex_repair)
+    run(args.max_cycles,battle_space=not args.no_battle_space,repair_with_codex=not args.no_codex_repair,activity=args.activity)
 
 
 if __name__=='__main__':

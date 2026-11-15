@@ -32,16 +32,24 @@ public class FishingCheck {
   if(!token.equals(FishingControl.snapshot(s).get("state_token").getAsString()))throw new AssertionError("Reel frame drift invalidated generation");
   game.h=90;no(FishingControl.snapshot(s),"can_reel");game.h=91;game.f=true;no(FishingControl.snapshot(s),"can_reel");game.f=false;
   boolean found=false;for(int n=0;n<192;n++){game.h=91+n;JsonObject snap=FishingControl.snapshot(s);JsonObject plan=FishingControl.plan(s,"reel",snap.get("state_token").getAsString());if(snap.get("reel_good").getAsBoolean()){found=true;if(plan.get("key").isJsonNull())throw new AssertionError("Good reel omitted");}else if(!plan.get("key").isJsonNull())throw new AssertionError("Bad timing accepted");}if(!found)throw new AssertionError("No original good reel window");
+  game.h=91;JsonObject difficult=FishingControl.snapshot(s);no(difficult,"reel_good");
+  String difficultToken=difficult.get("state_token").getAsString();
+  if(!FishingControl.plan(s,"reel",difficultToken).get("key").isJsonNull())throw new AssertionError("Strict reel accepted wrong window");
+  if(FishingControl.plan(s,"reel_attempt",difficultToken).get("key").isJsonNull())throw new AssertionError("Best-effort normal Space omitted");
+  if(!FishingControl.plan(s,"reel_attempt","stale").get("key").isJsonNull())throw new AssertionError("Best-effort accepted stale cast");
+  game.f=true;JsonObject submitted=FishingControl.snapshot(s);
+  if(!FishingControl.plan(s,"reel_attempt",submitted.get("state_token").getAsString()).get("key").isJsonNull())throw new AssertionError("Submitted cast accepted");game.f=false;
   game.d=8;JsonObject exhausted=FishingControl.snapshot(s);
   if(!FishingControl.plan(s,"reel",exhausted.get("state_token").getAsString()).get("key").isJsonNull())throw new AssertionError("Exhaustion counted as good reel");
   if(FishingControl.plan(s,"exhausted",exhausted.get("state_token").getAsString()).get("key").isJsonNull())throw new AssertionError("Exhaustion ack omitted");
   game.d=8;yes(FishingControl.snapshot(s),"exhausted");no(FishingControl.snapshot(s),"reel_good");game.d=255;no(FishingControl.snapshot(s),"can_reel");game.d=0;
   for(String field:new String[]{"ba","bn","aX","aZ","aM","aC","bA","ch"}) {
-   String previous=FishingControl.snapshot(s).get("state_token").getAsString();Screen.class.getDeclaredField(field).set(s,new Object());JsonObject blocked=FishingControl.snapshot(s);no(blocked,"can_reel");no(blocked,"can_cast");if(!FishingControl.plan(s,"reel",previous).get("key").isJsonNull())throw new AssertionError("Modal input accepted");Screen.class.getDeclaredField(field).set(s,null);
+   String previous=FishingControl.snapshot(s).get("state_token").getAsString();Screen.class.getDeclaredField(field).set(s,new Object());JsonObject blocked=FishingControl.snapshot(s);no(blocked,"can_reel");no(blocked,"can_cast");if(!FishingControl.plan(s,"reel",previous).get("key").isJsonNull())throw new AssertionError("Modal input accepted");if(!FishingControl.plan(s,"reel_attempt",blocked.get("state_token").getAsString()).get("key").isJsonNull())throw new AssertionError("Best-effort modal input accepted");Screen.class.getDeclaredField(field).set(s,null);
   }
   s.by.open=true;no(FishingControl.snapshot(s),"can_reel");s.by.open=false;s.bs.open=true;no(FishingControl.snapshot(s),"can_reel");s.bs.open=false;s.cG.open=true;no(FishingControl.snapshot(s),"can_reel");s.cG.open=false;
   String before=FishingControl.snapshot(s).get("state_token").getAsString();s.ag=new FloatGame();if(before.equals(FishingControl.snapshot(s).get("state_token").getAsString()))throw new AssertionError("New cast reused token");
   s.ag=new Object();JsonObject missing=FishingControl.snapshot(s);no(missing,"telemetry_complete");no(missing,"can_cast");no(missing,"can_reel");
+  if(!FishingControl.plan(s,"reel_attempt","unknown").get("key").isJsonNull())throw new AssertionError("Best-effort missing telemetry accepted");
   missing=FishingControl.snapshot(new Object());no(missing,"telemetry_complete");no(missing,"can_cast");no(missing,"can_reel");
   System.out.println("Pure fishing snapshots, exact timing and fail-closed readiness verified");
  }
