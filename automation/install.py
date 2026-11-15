@@ -13,7 +13,7 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 ROOT_FILES = {
     'automation.py', 'ai-game.py', 'autoplay.py', 'codex_repair.py', 'motion_watch.py', 'world_map.py',
-    'inn_recovery.py', 'inn_routes.py',
+    'inn_recovery.py', 'inn_routes.py', 'stall_watch.py',
     'quest_catalog.py', 'game-control.py', 'login-ai-game.py', 'play-linux.sh',
     'start-ai-game.sh', 'print-game-state.sh', 'pyproject.toml', 'uv.lock',
     '.env.example', '.gitignore', 'README-AUTOPLAY.md', 'AI-GAME-CONTROL.md',

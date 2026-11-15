@@ -52,6 +52,8 @@ A real Codex worker proposed accepted missing-route handling. Its verification w
 
 ## Automatic inn recovery
 
+The default controller also has a no-progress watchdog. Repeated failed navigation or input guards can start a non-interactive `codex exec` repair after 60 seconds; eligible idle stories use 180 seconds. It passes a bounded, filtered game-state log and the repair prompt through stdin. Normal combat, typing, choices and missing funds are excluded. Repairs retain their attempt/cooldown limits and must pass the complete test suite before automation reloads. Inspect `repair-state.json` and `repair-game-state.json` in the current session for progress.
+
 `uv run --locked automation.py` also watches the complete party, including reserves. If any Digimon has HP zero, recovery takes priority over quest walking after active battles have been handled. Unknown party telemetry waits. The controller selects the nearest estimated reachable inn from bundled world-map hints and collision paths; it does not choose the cheapest inn. Locked or unusable routes can pause recovery.
 
 At the inn it advances a catalog-matched innkeeper greeting, waits for the genuine inn offer, checks the server-provided BIT price against the wallet, and confirms the selected stay option once with normal Space. Insufficient BIT or an unconfirmed revival pauses instead of repeating purchases. Quest control resumes only after every party member has HP above zero, the inn UI has closed, and world movement is ready. No revival item, cash purchase or direct HP write is used. Inspect `inn-recovery.json` and the supervisor state/events for progress and pause reasons.

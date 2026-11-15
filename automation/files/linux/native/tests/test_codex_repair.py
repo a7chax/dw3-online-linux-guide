@@ -19,6 +19,65 @@ class RepairTests(unittest.TestCase):
    for reason in ['battle_wait','focus_lost','stale_state','story_choice']:
     self.assertFalse(r.observe(m.repair_context(reason,state,{})))
    self.assertFalse(r.observe(context));self.assertFalse(r.observe(context));self.assertTrue(r.observe(context))
+ def test_stall_context_includes_filtered_game_state_history(self):
+  m=self.module()
+  history=[{'at':10.,'reason':'unable_to_advance','action':'follow','state':{
+      'phase':'world','pid':123,'map':'s650','x':334.5,'y':328.5,'password':'SECRET',
+      'username':'PRIVATE','dialogue':{'text':'SECRET'},
+      'trace':{'enabled':True,'route_type':1,'points':[[1,2],[3,4]]}}}]
+  context=m.repair_context('navigation_stalled',history[0]['state'],{},history=history)
+  self.assertEqual(context['history'][0]['state']['map'],'s650')
+  self.assertEqual(context['history'][0]['state']['trace']['points'],[[1,2],[3,4]])
+  self.assertNotIn('SECRET',json.dumps(context));self.assertNotIn('PRIVATE',json.dumps(context))
+  self.assertIn('inn_recovery.py',context['files'])
+  with tempfile.TemporaryDirectory() as td:
+   r=m.CodexRepair(Path(td))
+   self.assertFalse(r.observe(context));self.assertFalse(r.observe(context));self.assertTrue(r.observe(context))
+ def test_worker_receives_owned_filtered_log_file(self):
+  m=self.module()
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td);(root/'autoplay.py').write_text('old');session=root/'session';session.mkdir();prompts=[]
+   class Process:
+    pid=987
+    def poll(self):return 0
+   def popen(command,**kwargs):
+    prompts.append(kwargs['stdin'].read());(root/'autoplay.py').write_text('fixed');return Process()
+   class Verified:returncode=0
+   r=m.CodexRepair(session,root=root,popen=popen,run=lambda *a,**k:Verified())
+   context=m.repair_context('navigation_stalled',{'phase':'world','map':'s650'}, {},history=[])
+   result=r.repair(context)
+   self.assertTrue(result['restart'])
+   logs=list((session/'repairs').rglob('game-state-log.json'))
+   self.assertEqual(len(logs),1);self.assertIn(str(logs[0]),prompts[0])
+   self.assertEqual(logs[0].stat().st_mode&0o777,0o600)
+ def test_worker_deadline_terminates_without_restarting_controller(self):
+  m=self.module()
+  class Process:
+   pid=987;done=False
+   def poll(self):return 0 if self.done else None
+   def wait(self,timeout):self.done=True;return 0
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td);(root/'autoplay.py').write_text('old');session=root/'session';session.mkdir();process=Process()
+   times=iter([0.,1.,2.,3.])
+   repair=m.CodexRepair(session,root=root,popen=lambda *a,**k:process,clock=lambda:next(times),max_worker_seconds=.5)
+   with patch.object(m.os,'killpg',side_effect=lambda *args:setattr(process,'done',True)) as kill:
+    result=repair.repair(m.repair_context('navigation_stalled',{},{}))
+   self.assertEqual(result['reason'],'worker_timeout');self.assertFalse(result['restart']);kill.assert_called_once()
+ def test_stalled_navigation_launches_qualified_repair_with_history(self):
+  self.module()
+  spec=importlib.util.spec_from_file_location('stall_autoplay_fixtures',ROOT/'linux/native/tests/test_autoplay.py');f=importlib.util.module_from_spec(spec);spec.loader.exec_module(f)
+  class Repair:
+   calls=[]
+   def observe(self,context):return False  # Ordinary failures alone do not launch this fixture worker.
+   def eligible(self,context):return True
+   def repair(self,context,check_stop):self.calls.append(context);check_stop();return {'restart':True,'reason':'verified'}
+  with tempfile.TemporaryDirectory() as td:
+   session=Path(td);clock=f.Clock();state=f.world();state['blocked']=True;game=f.Game(state,session);repair=Repair()
+   supervisor=f.autoplay.Supervisor(game,session,window_factory=f.Windows(),clock=clock.monotonic,sleep=clock.sleep,repair_manager=repair)
+   report=supervisor.run(max_cycles=160)
+   self.assertEqual(report['reason'],'repair_restart');self.assertEqual(len(repair.calls),1)
+   self.assertEqual(repair.calls[0]['reason'],'navigation_stalled');self.assertGreaterEqual(len(repair.calls[0]['history']),3)
+   self.assertTrue((session/'repair-game-state.json').exists())
  def test_fake_worker_flags_verification_restart_and_attempt_persistence(self):
   m=self.module()
   with tempfile.TemporaryDirectory() as td:

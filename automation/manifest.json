@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "481358d7d8b5b2107e950473f959eded5011af80674f46e4cecf02e3f0f5ffdd",
+      "sha256": "416b30b052a8baf86ff6f5cb69f5786ebf0d742afcba77eb13abf54fd2b25f47",
       "mode": 420
     },
     {
@@ -63,12 +63,12 @@
     },
     {
       "path": "autoplay.py",
-      "sha256": "bbc79d879151e13ced130f7ea6fd74eed8d7bea0d6c5bc68ea6bc6f7616f419f",
+      "sha256": "d0134a9b88380f2a169d902dc0b2060d3de391c6fb9b9b8e54acbb1e7672c08a",
       "mode": 420
     },
     {
       "path": "codex_repair.py",
-      "sha256": "b45ec432bd12655f7e44282bd0dfaa0e7b28f510199d1204808d0183491ed651",
+      "sha256": "66d541426dbc3e8555d2cd708a4b37b59f7976a65c3fec262292084f328b1e97",
       "mode": 420
     },
     {
@@ -178,7 +178,7 @@
     },
     {
       "path": "linux/native/tests/test_codex_repair.py",
-      "sha256": "f75f87544d8fde415ededc1c2a61bbbed5ac871f050f1d4538ec5bd5b5a265ef",
+      "sha256": "ceaf29153cff679076e157c777fe4085c677e3b272305a8c166febcad931cb83",
       "mode": 420
     },
     {
@@ -302,6 +302,11 @@
       "mode": 420
     },
     {
+      "path": "linux/native/tests/test_stall_watch.py",
+      "sha256": "d03173cc52e7df1b43c0151ca174dbb86b81d73d7866ea4f08e447b54f49344d",
+      "mode": 420
+    },
+    {
       "path": "linux/native/tests/test_state_file.py",
       "sha256": "2e332e848ddce7a12853258f1db84c9c1668ad33aec9c7e4601db2126c2375e9",
       "mode": 420
@@ -378,7 +383,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "f56ad1f323f78572b01d6db7c8f09330d0c049f88c3bdac7e4dd40183a0e2bc5",
+      "sha256": "bcf584a62684dace2d686206a4f6b465dd41768439b9072de1f77a900dd607bf",
       "mode": 420
     },
     {
@@ -388,7 +393,12 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "a94bc9e0955ac0c8d2b8a19bd593873f5b957d9cdfd6a73f8786e51c7cdc7580",
+      "sha256": "702bca88eff9a93b7a6a14c9944e19d8c212edaa094a8be5218db577b1400063",
+      "mode": 420
+    },
+    {
+      "path": "stall_watch.py",
+      "sha256": "a1e222b68014353f536d3b7aedf982e039e3a0a6541d01e25d90212ab9cd5908",
       "mode": 420
     },
     {

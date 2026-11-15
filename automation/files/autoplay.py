@@ -141,6 +141,9 @@ class Supervisor:
         self.repair_manager=repair_manager
         from inn_recovery import InnRecovery
         self.inn_recovery=InnRecovery(self.session,clock=self.clock);self.inn_decision=None
+        from stall_watch import StallWatch
+        self.stall_watch=StallWatch(self.session,clock=self.clock)
+        self.stall_trigger=None;self.repair_in_progress=False
         if repair_with_codex and self.repair_manager is None:
             from codex_repair import CodexRepair
             self.repair_manager=CodexRepair(self.session)
@@ -236,18 +239,23 @@ class Supervisor:
         if self.recovery_signature(verified)!=signature:raise InputPaused('route_changed')
         return self.game.follow_trace(seconds=15,destination=goal,cross_map=not interaction,**options)
 
-    def maybe_repair(self,reason,error_type=None):
+    def maybe_repair(self,reason,error_type=None,*,qualified=False):
         if self.repair_manager is None:return False
         from codex_repair import repair_context,TRIGGERS
         if reason not in TRIGGERS:return False
-        context=repair_context(reason,self.state,self.quest,error_type)
-        if not self.repair_manager.observe(context):return False
-        self.publish('repairing','codex_repair',repair_state_file=str(self.session/'repair-state.json'))
+        context=repair_context(reason,self.state,self.quest,error_type,history=self.stall_watch.history())
+        if qualified:
+            if not self.repair_manager.eligible(context):return False
+        elif not self.repair_manager.observe(context):return False
         # Pause all controller input and prevent another controller interleaving
         # while the isolated code worker or approval request is outstanding.
-        with self.game.navigation_lease():
-            result=self.repair_manager.repair(context,check_stop=self.check_stop)
-        self.publish('paused',result['reason'],repair_state_file=str(self.session/'repair-state.json'))
+        self.repair_in_progress=True
+        try:
+            self.publish('repairing','codex_repair',repair_state_file=str(self.session/'repair-state.json'))
+            with self.game.navigation_lease():
+                result=self.repair_manager.repair(context,check_stop=self.check_stop)
+            self.publish('paused',result['reason'],repair_state_file=str(self.session/'repair-state.json'))
+        finally:self.repair_in_progress=False
         if result['restart']:
             self.restart_requested=True
             raise StopRequested('repair_restart')
@@ -292,6 +300,7 @@ class Supervisor:
 
     def publish(self,mode,reason,action=None,wait_seconds=0,**extra):
         self.mode=mode;self.reason=reason
+        if mode!='stopped' and not self.repair_in_progress:self.record_watch(self.state,reason,action)
         report={'time':datetime.now(timezone.utc).isoformat(),'active':self.active,
             'supervisor_pid':os.getpid(),'game_pid':self.expected_pid,'session':str(self.session),
             'stop_file':str(self.stop_file),'mode':mode,'reason':reason,'action':action,
@@ -302,6 +311,8 @@ class Supervisor:
             'battle_space_enabled':self.battle_space,'codex_repair_enabled':self.repair_manager is not None,
             'background_input_enabled':self.state.get('native_background_input') is True,
             'inn_recovery':self.inn_recovery.report(),
+            'stall_repair_pending':self.stall_trigger['reason'] if self.stall_trigger else None,
+            'repair_game_state_log':str(self.stall_watch.path),
             'cached_route_available':self.cached_route is not None,'post_battle_recovery':self.post_battle_since is not None,
             'no_progress_cycles':self.no_progress,'wait_seconds':round(wait_seconds,2),**extra}
         temporary=self.session/'autoplay-state.tmp';temporary.write_text(json.dumps(report,indent=2)+'\n')
@@ -310,6 +321,30 @@ class Supervisor:
         if key!=self.last_event:
             with (self.session/'autoplay-events.jsonl').open('a') as output:output.write(json.dumps(report)+'\n')
             self.last_event=key
+
+    @staticmethod
+    def stall_identity(state):
+        quest=state.get('main_quest') or {}
+        def cell(value,size):return math.floor(value/size) if isinstance(value,(int,float)) and math.isfinite(value) else None
+        return (state.get('pid'),state.get('map'),quest.get('chapter'),quest.get('step'),quest.get('target_map'),
+                cell(state.get('x'),8),cell(state.get('y'),4),route_endpoint(state))
+
+    def record_watch(self,state,reason,action=None):
+        identity=self.stall_identity(state)
+        if self.stall_trigger and self.stall_trigger['identity']!=identity:self.stall_trigger=None
+        trigger=self.stall_watch.observe(state,reason,action)
+        if trigger:self.stall_trigger={'reason':trigger,'identity':identity}
+
+    @staticmethod
+    def stall_repair_allowed(state,reason):
+        battle=state.get('battle') or {};story=state.get('story') or {};inn=state.get('inn') or {}
+        if reason=='navigation_stalled':
+            return state.get('movement_ready') is True and not any((battle.get('active'),story.get('active'),inn.get('active'),state.get('dialogue')))
+        for modal in (battle,story,inn,state.get('dialogue') or {}):
+            if not modal:continue
+            if (modal.get('typing') or modal.get('awaiting_choice') or (modal.get('choice_count') or 0)>0
+                    or modal.get('transitioning') or modal.get('submitted')):return False
+        return True
 
     def pause(self,reason,seconds=1):
         self.publish('paused',reason,wait_seconds=seconds);self.wait(seconds)
@@ -363,6 +398,7 @@ class Supervisor:
             result=original_request(operation,**parameters)
             if operation=='status':
                 owner.check_input(result)
+                owner.record_watch(result,'poll')
                 if action in ('cached_recovery','popup_close'):
                     owner.check_input(result,expected_map)
                     if owner.route_identity(result)!=expected_route_identity:raise InputPaused('cached_route_changed')
@@ -506,6 +542,12 @@ class Supervisor:
         if self.game._quest_step(self.state) is None:self.pause('invalid_quest_state',2);return
         try:self.quest=self.game.describe_quest(self.state)
         except Exception:self.pause('unknown_quest',2);return
+        self.record_watch(self.state,'poll')
+        pending=self.stall_trigger
+        if (pending and pending['identity']==self.stall_identity(self.state)
+                and self.stall_repair_allowed(self.state,pending['reason'])):
+            if self.maybe_repair(pending['reason'],qualified=True):self.stall_trigger=None;return
+        elif pending:self.stall_trigger=None
         self.remember_route(self.state)
         try:self.ensure_window()
         except InputPaused as error:self.pause(str(error));return

@@ -122,6 +122,8 @@ A live Forest Inn stay was verified: the server charged 1,520 BIT (52,435 → 50
 
 ## Tests
 
+The default no-progress watchdog can launch non-interactive `codex exec` after repeated navigation or modal-guard failures (60 seconds without progress), or an eligible idle story (180 seconds). Its prompt arrives on stdin; the worker reads a bounded credential-filtered game-state log, adds a regression and must pass the full suite before reload. It never launches the interactive Codex terminal UI. Normal combat, typing, choices, loading and insufficient funds do not qualify. Worker runtime and repair attempt/cooldown limits remain bounded.
+
 Installer tests run without game files or a desktop:
 
 ```bash
@@ -134,7 +136,7 @@ After installing into your own prepared game, building the adapter/runtime, and 
 uv run --locked python -B -m unittest discover -s linux/native/tests -p 'test_*.py' -q
 ```
 
-The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The battle-input revision passed 222 local automation tests and 8 installer tests. A completed background story no longer blocks active combat; unfinished stories and choices retain their input guards. The live inn stay above verified the normal BIT fee, full party revival and resumed quest control; its first innkeeper interaction was assisted before correcting the approach predicate. The four-cycle background check verified popup closure and movement while minimized. Live results belong to the original inspected installation; verify your own setup separately.
+The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The stall-watchdog revision passed 245 local automation tests and 8 installer tests. A live navigation stall launched non-interactive Codex with 96 filtered snapshots and a stdin prompt; that launch alone does not prove a successful repair. A completed background story no longer blocks active combat; unfinished stories and choices retain their input guards. The live inn stay above verified the normal BIT fee, full party revival and resumed quest control; its first innkeeper interaction was assisted before correcting the approach predicate. Live results belong to the original inspected installation; verify your own setup separately.
 
 ## Maintainers
 
