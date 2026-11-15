@@ -38,7 +38,8 @@ class BattlePolicyTests(unittest.TestCase):
         current=state();current['phase']='loading_map'
         self.assertIsNone(self.planner.decide(current))
 
-    def test_affordable_unknown_skill_explores_once_without_fake_power(self):
+    def test_affordable_unknown_skill_explores_only_after_normal_attack_baseline(self):
+        self.planner.learning['samples'][self.planner._key(11,22,'attack')]=[20.]
         decision=self.planner.decide(state())
         self.assertEqual(decision['kind'],'skill');self.assertEqual(decision['skill_index'],3)
         self.assertEqual(decision['reason'],'explore_unknown_skill')
@@ -62,7 +63,7 @@ class BattlePolicyTests(unittest.TestCase):
         self.assertIsNone(self.planner.decide(current))
 
     def test_hp_item_intent_survives_menu_sequence_and_restart(self):
-        current=state();battle=current['battle'];battle['actor']['hp']=30;battle['party'][0]['hp']=30
+        current=state();battle=current['battle'];battle['actor']['hp']=10;battle['party'][0]['hp']=10
         battle['items']=[{'item_id':90,'quantity':2,'heal_hp':60,'heal_ds':0}]
         decision=self.planner.decide(current)
         self.assertEqual(decision['kind'],'items')
@@ -74,38 +75,35 @@ class BattlePolicyTests(unittest.TestCase):
         decision=self.planner.decide(current)
         self.assertEqual((decision['kind'],decision['target_slot']),('item_target',0))
 
-    def test_ds_item_requires_a_useful_skill_and_not_full_ds(self):
+    def test_routine_ds_items_wait_until_after_battle(self):
         current=state();battle=current['battle'];battle['actor']['ds']=2;battle['party'][0]['ds']=2
         battle['items']=[{'item_id':91,'quantity':1,'heal_ds':30}]
-        self.assertEqual(self.planner.decide(current)['kind'],'items')
+        self.assertEqual(self.planner.decide(current)['kind'],'attack')
         current=state('no-skill');current['battle']['options']=current['battle']['options'][::2]
         current['battle']['actor']['ds']=2;current['battle']['items']=battle['items']
         self.assertEqual(self.planner.decide(current)['kind'],'attack')
 
-    def test_ds_recovery_considers_a_known_skill_currently_disabled_by_low_ds(self):
+    def test_low_ds_disabled_skill_does_not_preempt_basic_attack_with_ds_item(self):
         current=state();battle=current['battle'];battle['actor']['ds']=2;battle['party'][0]['ds']=2
         battle['options'][1]['enabled']=False
         battle['items']=[{'item_id':91,'quantity':1,'heal_ds_percent':50}]
-        self.assertEqual(self.planner.decide(current)['kind'],'items')
+        self.assertEqual(self.planner.decide(current)['kind'],'attack')
 
     def test_empty_menu_can_back_out_but_malformed_collections_are_not_actions(self):
         for field in ('options','fighters','enemy_groups','items','party'):
             current=state();current['battle'][field]=None
             with self.subTest(field=field):self.assertIsNone(self.planner.decide(current))
 
-    def test_measured_beneficial_skill_wins_over_attack_after_cost_penalty(self):
-        current=state();skill=self.planner.decide(current)
-        self.planner.note_result(skill,current,current)
-        current=state('turn-2');current['battle']['fighters'][1]['hp']=40
-        self.planner.observe(current)
-        attack=self.planner.decide(current);self.assertEqual(attack['kind'],'attack')
-        self.planner.note_result(attack,current,current)
-        current=state('turn-3');current['battle']['fighters'][1]['hp']=30
-        self.planner.observe(current)
-        self.assertEqual(self.planner.decide(current)['reason'],'observed_skill_benefit_after_cost')
+    def test_measured_beneficial_skill_saves_estimated_turns(self):
+        self.planner.learning['samples'][self.planner._key(11,22,'attack')]=[10.,12.]
+        self.planner.learning['samples'][self.planner._key(11,22,'skill',3)]=[60.,70.]
+        decision=self.planner.decide(state())
+        self.assertEqual(decision['kind'],'skill')
+        self.assertEqual(decision['reason'],'estimated_skill_saves_turns')
+        self.assertEqual(decision['estimated_turns'],2)
 
     def test_selected_item_target_must_remain_alive_and_missing_health(self):
-        current=state();battle=current['battle'];battle['party'][0]['hp']=30
+        current=state();battle=current['battle'];battle['actor']['hp']=10;battle['party'][0]['hp']=10
         battle['items']=[{'item_id':90,'quantity':1,'heal_hp_percent':50}]
         self.planner.decide(current)
         battle.update(menu='item_target',menu_token='target',selected_item_id=90,
@@ -176,8 +174,8 @@ class BattlePolicyTests(unittest.TestCase):
         self.assertLessEqual(len(saved['handled']),128);self.assertLessEqual(len(saved['decisions']),128)
         self.assertEqual(len(next(iter(learned['samples'].values()))),16)
 
-    def test_submitted_skill_is_never_learned_as_a_menu_open(self):
-        before=state();before['battle']['party'][0]['hp']=10
+    def test_item_menu_open_is_never_learned_as_offensive_damage(self):
+        before=state();before['battle']['actor']['hp']=10;before['battle']['party'][0]['hp']=10
         before['battle']['items']=[{'item_id':90,'quantity':1,'heal_hp':80}]
         decision=self.planner.decide(before);self.planner.note_result(decision,before,before)
         after=state('ready');after['battle']['fighters'][1]['hp']=50
@@ -215,11 +213,11 @@ class BattlePolicyTests(unittest.TestCase):
         self.assertFalse(self.planner.cancel(decision))
         self.assertIsNone(BattlePlanner(self.session).decide(current))
 
-    def test_ds_item_targets_active_slot_when_party_has_duplicate_form(self):
-        current=state();battle=current['battle'];battle['actor'].update(ds=2,active_index=1)
+    def test_hp_item_targets_active_slot_when_party_has_duplicate_form(self):
+        current=state();battle=current['battle'];battle['actor'].update(hp=10,ds=2,active_index=1)
         battle['party']=[{'slot':0,'form_id':11,'hp':100,'max_hp':100,'ds':90,'max_ds':100},
-                         {'slot':1,'form_id':11,'hp':100,'max_hp':100,'ds':2,'max_ds':100}]
-        battle['items']=[{'item_id':91,'quantity':1,'heal_ds':50}]
+                         {'slot':1,'form_id':11,'hp':10,'max_hp':100,'ds':2,'max_ds':100}]
+        battle['items']=[{'item_id':91,'quantity':1,'heal_hp':60}]
         self.planner.decide(current)
         battle.update(menu='items',menu_token='items',options=[{'index':0,'kind':'item','enabled':True,'item_id':91}])
         self.assertEqual(self.planner.decide(current)['target_slot'],1)

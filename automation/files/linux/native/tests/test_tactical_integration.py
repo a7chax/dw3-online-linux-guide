@@ -31,7 +31,9 @@ class TacticalIntegrationTests(unittest.TestCase):
   self.game.request=request
   return autoplay.Supervisor(self.game,self.session,clock=self.clock.monotonic,sleep=self.clock.sleep,window_factory=self.windows,battle_space=True)
  def test_complete_battle_uses_affordable_skill_native_choice(self):
-  sup=self.supervisor(combat());sup.run(max_cycles=1)
+  sup=self.supervisor(combat())
+  sup.battle_planner.learning['samples'][sup.battle_planner._key(7,9,'attack')]=[20.]
+  sup.run(max_cycles=1)
   self.assertEqual(self.game.actions[0][0],'battle_choose');self.assertEqual(self.game.actions[0][1]['option_index'],1)
   self.assertEqual(self.game.actions[0][1]['expected_token'],'menu1');self.assertFalse(any(a[0]=='scene' for a in self.game.actions))
  def test_blocking_story_does_not_consume_battle_menu_token(self):
@@ -47,6 +49,27 @@ class TacticalIntegrationTests(unittest.TestCase):
   sup=self.supervisor(s);sup.run(max_cycles=1)
   self.assertEqual(self.game.actions[0][0],'supplies_step');self.assertEqual(self.game.actions[0][1]['mode'],'use')
   self.assertEqual(self.game.actions[0][1]['item_id'],10)
+ def test_routine_heal_runs_after_battle_then_navigation_resumes(self):
+  s=world();s.update(supplies_state());s['main_quest']={'chapter':5,'step':3,'target_map':'s375'}
+  s['supplies']['party'][0].update(hp=50,ds=50)
+  for item in s['supplies']['inventory']:item['quantity']=5
+  sup=self.supervisor(s);original=self.game.request
+  def request(op,**kwargs):
+   if op!='supplies_step':return original(op,**kwargs)
+   self.game.actions.append((op,kwargs))
+   if kwargs['mode']=='close':
+    s['supplies']['inventory_open']=False;plan={'key':'i','submit':False}
+   elif not s['supplies']['inventory_open']:
+    s['supplies']['inventory_open']=True;plan={'key':'i','submit':False}
+   else:
+    s['supplies']['party'][0]['hp']=100;s['supplies']['inventory'][0]['quantity']-=1
+    plan={'key':'space','submit':True}
+   return {'plan':plan,'after':copy.deepcopy(s)}
+  self.game.request=request;sup.run(max_cycles=5)
+  self.assertEqual([a[0] for a in self.game.actions[:4]],['supplies_step']*3+['follow'])
+  self.assertEqual(s['supplies']['party'][0]['hp'],100)
+  self.assertIsNone(sup.supplies_recovery.use)
+
  def test_battle_choice_rejects_map_change_before_native_dispatch(self):
   sup=self.supervisor(combat());sup.state=copy.deepcopy(self.state);sup.expected_pid=123;sup.ensure_window()
   decision={'option_index':1,'expected_token':'menu1','battle_id':'b7','kind':'skill','target_group':1}

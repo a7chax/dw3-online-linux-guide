@@ -13,7 +13,7 @@
     },
     {
       "path": "AI-GAME-CONTROL.md",
-      "sha256": "4f1ebcc61b9dc716426301af20257407991fc1eb0253d3f825fdd05a12a20164",
+      "sha256": "bf7c5f124ea489b3fe4cee6158a1a0c5b7fbac0f72e1b48c552d5fe196bc206b",
       "mode": 420
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "cb9a6455354c4429c43a5b2c6b2d1b375ab8c94667441179eb7781431d985685",
+      "sha256": "d5505e24dd52d2aa330832fed224b48686e80e74e58a65e8dccdd491cc2bc488",
       "mode": 420
     },
     {
@@ -68,12 +68,17 @@
     },
     {
       "path": "battle_policy.py",
-      "sha256": "d82ead1ea1e39937dc39b37018f77b06df82c53debccf368f8e9c38934799523",
+      "sha256": "1f025fbc8f8a940b39c6e72b2c37a807bf7a128a720f699f07f3744b0a9e758e",
       "mode": 420
     },
     {
       "path": "codex_repair.py",
       "sha256": "c310c836fc60005b0090fea4e63ebf438c209426354dd985087a6713fc7071b3",
+      "mode": 420
+    },
+    {
+      "path": "docs/AI-BATTLE-MODEL-DRAFT.md",
+      "sha256": "be2b82a8ac3d41cb7cd173404b80229a03c44d7eae9bc7be3926507cf9e07ad8",
       "mode": 420
     },
     {
@@ -222,8 +227,13 @@
       "mode": 420
     },
     {
+      "path": "linux/native/tests/test_battle_efficiency.py",
+      "sha256": "882774719b92ed7a9c6b4d99c6100f996f4225a59b19797a3f8471a21d23f140",
+      "mode": 420
+    },
+    {
       "path": "linux/native/tests/test_battle_policy.py",
-      "sha256": "a9b75a6b2e9a737f8f80a9ad545cda887be6612edd9c1fe3ceb5026345d044de",
+      "sha256": "72fe49360f8c998fd78dffc7579a875b73f36da99a1c501cb64a4ed9fa881cce",
       "mode": 420
     },
     {
@@ -403,7 +413,7 @@
     },
     {
       "path": "linux/native/tests/test_tactical_integration.py",
-      "sha256": "8f58d49732a9009859bcf1dc6b9f7d2498607c17add486046014dd223e6c0aa3",
+      "sha256": "7f189e8bda9e7e57e2cddc30f630460d000d1636b45ba94656ff13f8769b725c",
       "mode": 420
     },
     {
@@ -468,7 +478,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "0944e96208de53a030f5fbbc0cc3ba09da5e0f97251b083356839c7242c1fbca",
+      "sha256": "f033868bf5df5db7ec315bc0c389104ade8081b36679a74c8f4bb534ccee0955",
       "mode": 420
     },
     {
@@ -478,7 +488,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "1e8d4a4ba9f0ff9ab7a19fffb6594f1c073b32fcf0f7f5a0adaccdc1b68d8aea",
+      "sha256": "6d84af80315662a30460fe9d280b5f1ddccd9212e8a3665776cb357fd15b8f9a",
       "mode": 420
     },
     {

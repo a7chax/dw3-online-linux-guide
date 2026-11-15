@@ -166,3 +166,7 @@ The current one-command entry upgrades the monitored bridge to expose verified b
 World recovery uses owned HP/DS items before restocking. It targets three recovery items of each type, purchases at most five at once, and caps each restock at min(10% starting BIT, 5,000 BIT, wallet minus a 5,000 BIT reserve). Every step rechecks the live shop price, wallet and menu token. Purchases require confirmed stock gain and BIT loss; item use requires inventory loss and HP/DS gain. Unconfirmed operations back off rather than repeating purchases. Cash and permanent-stat items are excluded.
 
 See [the runtime guide](files/README-AUTOPLAY.md), [battle evidence](files/docs/battle-research.md), and [item/shop evidence](files/docs/item-shop-research.md). Native snapshots and normal menu handlers are tested with isolated fixtures; live evidence is recorded separately in the runtime guide. These controls still depend on the original prepared game and an active desktop/OpenGL session.
+
+The combat-efficiency correction prefers a conservative normal-attack finisher, establishes a basic baseline before skill exploration and separates terminal kill bounds from uncensored HP-loss samples. Routine party HP/DS recovery happens after combat; only useful active-fighter emergency healing can occur during battle, with an accepted offensive command required before another item. The guard survives restart and incomplete menu telemetry.
+
+The [AI battle model draft](files/docs/AI-BATTLE-MODEL-DRAFT.md) is a proposal only. No new AI model or training process is enabled.
