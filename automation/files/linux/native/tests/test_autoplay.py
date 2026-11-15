@@ -88,6 +88,26 @@ class AutoplayTests(unittest.TestCase):
         self.assertFalse(report['active']);self.assertEqual(report['reason'],'max_cycles')
         self.assertEqual(report['game_pid'],123)
 
+    def test_pending_story_repair_is_discarded_when_story_closes(self):
+        from unittest.mock import Mock
+        self.state['story']={'active':True,'telemetry_complete':True,'typing':False,'can_advance':False,
+                             'awaiting_choice':False,'choice_count':0,'submitted':False,'script_complete':False}
+        repair=Mock();repair.eligible.return_value=True;self.supervisor.repair_manager=repair
+        self.supervisor.stall_trigger={'reason':'story_stalled','identity':self.supervisor.stall_identity(self.state),
+                                       'modal':self.supervisor.stall_modal_identity(self.state)}
+        self.state.pop('story');self.supervisor.run(max_cycles=1)
+        repair.eligible.assert_not_called();repair.repair.assert_not_called();self.assertIsNone(self.supervisor.stall_trigger)
+
+    def test_pending_guard_repair_is_discarded_when_modal_becomes_unknown(self):
+        from unittest.mock import Mock
+        self.state['battle']={'active':True,'telemetry_complete':True,'transitioning':False,
+                              'submitted':False,'can_advance':True,'result_ready':True}
+        repair=Mock();repair.eligible.return_value=True;self.supervisor.repair_manager=repair
+        self.supervisor.stall_trigger={'reason':'input_guard_stalled','identity':self.supervisor.stall_identity(self.state),
+                                       'modal':self.supervisor.stall_modal_identity(self.state)}
+        self.state['battle']['telemetry_complete']=False;self.supervisor.run(max_cycles=1)
+        repair.eligible.assert_not_called();repair.repair.assert_not_called();self.assertIsNone(self.supervisor.stall_trigger)
+
     def test_default_automation_prioritizes_inn_for_fainted_reserve(self):
         from linux.native.tests.test_inn_recovery import state,Router
         health=state();self.state.update({k:health[k] for k in ('party','wallet','inn','native_inn_recovery')})

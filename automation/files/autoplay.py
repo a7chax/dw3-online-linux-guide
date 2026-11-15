@@ -123,6 +123,7 @@ class Supervisor:
         self.clock=clock;self.sleep=sleep;self.active=False;self.cycles=0;self.actions=0;self.progress_events=0
         self.state={};self.quest={};self.last_event=None;self.last_seen=None;self.no_progress=0;self.cooldown=0
         self.empty_since=None;self.last_refresh=-math.inf;self.pending_recovery=None;self.failed_recoveries={}
+        self.rejected_gps=None
         self.alignments={};self.blocked_interactions={}
         self.route_context=None;self.cached_route=None;self.was_in_battle=False
         self.post_battle_since=None;self.post_battle_refreshed=False;self.atlas_factory=None
@@ -331,9 +332,19 @@ class Supervisor:
 
     def record_watch(self,state,reason,action=None):
         identity=self.stall_identity(state)
-        if self.stall_trigger and self.stall_trigger['identity']!=identity:self.stall_trigger=None
+        if self.stall_trigger and (self.stall_trigger['identity']!=identity or
+                (self.stall_trigger.get('modal') is not None and self.stall_trigger['modal']!=self.stall_modal_identity(state))):
+            self.stall_trigger=None
         trigger=self.stall_watch.observe(state,reason,action)
-        if trigger:self.stall_trigger={'reason':trigger,'identity':identity}
+        if trigger:
+            self.stall_trigger={'reason':trigger,'identity':identity,
+                                'modal':None if trigger=='navigation_stalled' else self.stall_modal_identity(state)}
+
+    @staticmethod
+    def stall_modal_identity(state):
+        from stall_watch import sanitize_state
+        safe=sanitize_state(state)
+        return json.dumps({key:safe[key] for key in ('battle','story','dialogue','inn')},sort_keys=True)
 
     @staticmethod
     def stall_repair_allowed(state,reason):
@@ -344,7 +355,15 @@ class Supervisor:
             if not modal:continue
             if (modal.get('typing') or modal.get('awaiting_choice') or (modal.get('choice_count') or 0)>0
                     or modal.get('transitioning') or modal.get('submitted')):return False
-        return True
+        story_ready=(story.get('active') is True and story.get('telemetry_complete') is True
+                     and story.get('typing') is False and not battle.get('active'))
+        if reason=='story_stalled':return story_ready
+        if reason=='input_guard_stalled':
+            dialogue=state.get('dialogue') or {}
+            return bool((battle.get('active') and battle.get('telemetry_complete') is True)
+                        or story_ready or (inn.get('active') and inn.get('telemetry_complete') is True and inn.get('can_confirm') is True)
+                        or (dialogue and dialogue.get('typing') is False and dialogue.get('can_advance') is True))
+        return False
 
     def pause(self,reason,seconds=1):
         self.publish('paused',reason,wait_seconds=seconds);self.wait(seconds)
@@ -448,7 +467,8 @@ class Supervisor:
                 trace=fresh.get('trace') or {}
                 if battle.get('active') or story.get('active') or fresh.get('movement_ready') is False:
                     raise InputPaused('modal_changed')
-                if ((g_presses==0 and (not trace.get('enabled') or trace.get('points') or trace.get('route_type')!=0))
+                if owner.route_identity(fresh)!=expected_route_identity:raise InputPaused('quest_changed')
+                if ((g_presses==0 and not owner.gps_refreshable(fresh))
                         or (g_presses>0 and trace.get('enabled') is not False)):
                     raise InputPaused('route_changed')
                 g_presses+=1
@@ -459,12 +479,25 @@ class Supervisor:
         finally:
             game_control.GameWindow=original_factory;self.game.request=original_request;self.game.press_game_key=original_press
 
+    def gps_signature(self,state):
+        trace=state.get('trace') or {};identity=self.route_identity(state)
+        # Static rejection applies to both travel and NPC routes. Keep the
+        # type in the signature so changing it invalidates refresh permission.
+        if (identity is None or state.get('movement_ready') is not True or state.get('dialogue')
+                or any((state.get(key) or {}).get('active') for key in ('battle','story','inn'))
+                or not cacheable_trace(trace)):return None
+        return identity,state.get('x'),state.get('y'),trace['route_type'],tuple(tuple(point) for point in trace['points'])
+
+    def gps_refreshable(self,state):
+        trace=state.get('trace') or {}
+        return bool((trace.get('enabled') and not trace.get('points') and trace.get('route_type')==0)
+                    or (self.rejected_gps is not None and self.gps_signature(state)==self.rejected_gps))
+
     def gps_refresh(self):
         self.last_refresh=self.clock();expected_map=self.state['map']
         with self.game.navigation_lease():
             state=self.game.request('status');self.check_input(state,expected_map)
-            trace=state.get('trace') or {}
-            if not trace.get('enabled') or trace.get('points') or trace.get('route_type')!=0:
+            if not self.gps_refreshable(state):
                 return {'reason':'route_changed','current':state}
             self.game.press_game_key(self.window,'g');self.wait(.25)
             state=self.game.request('status');self.check_input(state,expected_map)
@@ -572,6 +605,15 @@ class Supervisor:
             action,reason=policy(planning,self.quest,self.scene_targets,self.boundary_ready(self.state),self.battle_space)
             if planning is not self.state and action=='follow':action='cached_recovery';reason='post_battle_cached_route'
         now=self.clock()
+        if self.rejected_gps is not None:
+            if (self.gps_signature(self.state)!=self.rejected_gps
+                    or now>=self.failed_recoveries.get(self.recovery_signature(self.state),-math.inf)):
+                self.rejected_gps=None
+            elif action=='follow':
+                # A nonempty GPS reply can cross disconnected collision regions.
+                # Replace that rejected route rather than following it again.
+                action='gps_refresh' if now-self.last_refresh>=30 else None
+                reason='unreachable_gps_route'
         if reason=='empty_gps_route':
             if self.empty_since is None:self.empty_since=now
             if (self.post_battle_since is not None and not self.post_battle_refreshed
@@ -628,6 +670,12 @@ class Supervisor:
             if self.clock()>=self.failed_recoveries.get(signature,-math.inf):self.pending_recovery=signature
         if action=='local_recovery' and not interrupted and result_reason not in ('map_changed','destination_reached'):
             self.failed_recoveries[signature]=self.clock()+60
+            if result_reason=='local_route_unavailable':
+                self.rejected_gps=self.gps_signature(after)
+                if self.rejected_gps is not None:
+                    # Movement backoff must not outlive rejection permission
+                    # before a rate-limited GPS refresh can run.
+                    self.cooldown=min(self.cooldown,max(self.clock(),self.last_refresh+30))
             if result_reason in ('unable_to_advance','no_map_exit_detected'):
                 self.maybe_repair('local_recovery_failed')
         self.publish('waiting',result_reason,action=action,

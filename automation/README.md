@@ -124,6 +124,16 @@ A live Forest Inn stay was verified: the server charged 1,520 BIT (52,435 → 50
 
 The default no-progress watchdog can launch non-interactive `codex exec` after repeated navigation or modal-guard failures (60 seconds without progress), or an eligible idle story (180 seconds). Its prompt arrives on stdin; the worker reads a bounded credential-filtered game-state log, adds a regression and must pass the full suite before reload. It never launches the interactive Codex terminal UI. Normal combat, typing, choices, loading and insufficient funds do not qualify. Worker runtime and repair attempt/cooldown limits remain bounded.
 
+The repair worker uses this command shape automatically, with the generated prompt file connected to stdin:
+
+```bash
+codex --sandbox workspace-write --ask-for-approval on-request \
+  -c approvals_reviewer=auto_review exec --skip-git-repo-check \
+  --cd "$GAME_ROOT" -o "$REPAIR_DIR/report.md" - < "$REPAIR_DIR/prompt.txt"
+```
+
+Run `uv run --locked automation.py` from the installed game directory to use the complete controller. No interactive Codex terminal input is needed. Inspect `repair-state.json` for worker and verification results. Queued modal repairs are dropped when the modal closes or changes. Saturated movement backoff cannot prevent a rejected-route refresh; the 30-second GPS rate limit and 60-second local-recovery exclusion remain enforced.
+
 Installer tests run without game files or a desktop:
 
 ```bash
@@ -136,7 +146,7 @@ After installing into your own prepared game, building the adapter/runtime, and 
 uv run --locked python -B -m unittest discover -s linux/native/tests -p 'test_*.py' -q
 ```
 
-The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The stall-watchdog revision passed 245 local automation tests and 8 installer tests. A live navigation stall launched non-interactive Codex with 96 filtered snapshots and a stdin prompt; that launch alone does not prove a successful repair. A completed background story no longer blocks active combat; unfinished stories and choices retain their input guards. The live inn stay above verified the normal BIT fee, full party revival and resumed quest control; its first innkeeper interaction was assisted before correcting the approach predicate. Live results belong to the original inspected installation; verify your own setup separately.
+The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. A live navigation repair used non-interactive Codex with 96 filtered snapshots and a stdin prompt. The worker exited zero, parent verification passed 251 tests and automation reloaded; fresh game state then confirmed movement from s650 to s655. A second worker fixed the corresponding NPC-route case, passed 258 parent verification tests and reached the NPC story interaction on s655. These observations establish both automatic repair cycles. Installer checks include a strict allowlist for reviewed JSON replay fixtures. A completed background story no longer blocks active combat; unfinished stories and choices retain their input guards. The live inn stay above verified the normal BIT fee, full party revival and resumed quest control; its first innkeeper interaction was assisted before correcting the approach predicate. Live results belong to the original inspected installation; verify your own setup separately.
 
 ## Maintainers
 

@@ -69,6 +69,12 @@ class InstallerTests(unittest.TestCase):
         (self.game / '.env.example').symlink_to('.env')
         with self.assertRaises(ValueError): self.install(True)
         self.assertFalse((self.game / 'linux/automation-backups').exists())
+    def test_only_reviewed_json_fixtures_are_allowed(self):
+        for name in installer.FIXTURE_FILES:
+            self.assertEqual(str(installer.relative_path(name)), name)
+        for name in ('linux/native/tests/fixtures/private.json', 'linux/native/raw-state.json'):
+            with self.assertRaises(ValueError): installer.relative_path(name)
+
     def test_original_client_is_required(self):
         (self.game / 'app/client.jar').unlink()
         with self.assertRaisesRegex(ValueError, 'app/client.jar'): self.install(True)

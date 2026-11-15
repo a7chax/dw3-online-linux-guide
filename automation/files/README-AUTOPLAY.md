@@ -47,7 +47,7 @@ Integrated entry-point verification: `uv run --locked automation.py --max-cycles
 
 Startup recovery was also verified live: the two-cycle one-command entry moved from the recorded stuck position near `(776.5, 297.66)` on `s205` to `(1209, 472.75)` on `s330`, with two actions and two progress events and no AI game input. A deliberately oversized X11 capture error was trapped, and the next capture succeeded. These checks cover the observed resize/collision-margin failures, not every route or objective.
 
-A real Codex worker proposed accepted missing-route handling. Its verification was stopped, so the complete automatic repair/restart chain remains unverified; a stop during verification is `repair_interrupted`, not a successful verified repair or a worker failure.
+An earlier missing-route repair was interrupted during verification and recorded as `repair_interrupted`. A later non-interactive repair completed: the worker exited zero, the parent passed 251 tests, reloaded automation and the character moved from s650 to s655. This verifies that repair cycle; it does not establish autonomous completion of every quest.
 
 
 ## Automatic inn recovery
@@ -59,3 +59,7 @@ The default controller also has a no-progress watchdog. Repeated failed navigati
 At the inn it advances a catalog-matched innkeeper greeting, waits for the genuine inn offer, checks the server-provided BIT price against the wallet, and confirms the selected stay option once with normal Space. Insufficient BIT or an unconfirmed revival pauses instead of repeating purchases. Quest control resumes only after every party member has HP above zero, the inn UI has closed, and world movement is ready. No revival item, cash purchase or direct HP write is used. Inspect `inn-recovery.json` and the supervisor state/events for progress and pause reasons.
 
 A live Forest Inn stay was verified: the server charged 1,520 BIT (52,435 → 50,915; Cash remained zero), Agumon, Palmon and Renamon ended at HP 2,462, 1,202 and 2,002 respectively, and quest control resumed. The initial innkeeper approach was assisted after a distance/facing loop; subsequent greeting pages, genuine offer, payment and revival ran through automation. The approach now uses the client's exact interaction/facing predicate with regression fixtures. A complete unassisted travel-to-revival loop has not yet been verified.
+
+Queued modal repairs are discarded if the modal closes or its filtered state changes. An unreachable nonempty travel or NPC GPS route can be refreshed with normal G input after collision-path rejection; existing guards and refresh limits still apply.
+
+After a valid static-route rejection, movement backoff is shortened only enough to permit the next rate-limited GPS refresh. The 30-second refresh interval and 60-second local-recovery exclusion remain enforced; saturated movement backoff must not starve refresh.

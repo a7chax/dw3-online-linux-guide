@@ -11,6 +11,10 @@ import shutil
 import tempfile
 
 HERE = Path(__file__).resolve().parent
+FIXTURE_FILES = {
+    'linux/native/tests/fixtures/s650-rejected-gps.json',
+    'linux/native/tests/fixtures/s655-rejected-npc-gps.json',
+}
 ROOT_FILES = {
     'automation.py', 'ai-game.py', 'autoplay.py', 'codex_repair.py', 'motion_watch.py', 'world_map.py',
     'inn_recovery.py', 'inn_routes.py', 'stall_watch.py',
@@ -30,7 +34,7 @@ def relative_path(value):
         raise ValueError('Payload paths must be relative and contain no traversal.')
     if any(part.startswith('.env') and part != '.env.example' for part in path.parts):
         raise ValueError('Private environment files cannot be installed.')
-    allowed = (value in ROOT_FILES or value == 'scripts/export-quest-text.py'
+    allowed = (value in ROOT_FILES or value in FIXTURE_FILES or value == 'scripts/export-quest-text.py'
                or value in {'docs/autoplay-design.md', 'docs/inn-routing-findings.md'}
                or value == 'skills/dw3-linux-control/agents/openai.yaml'
                or (value.startswith('skills/dw3-linux-control/') and path.suffix == '.md')

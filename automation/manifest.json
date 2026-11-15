@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "416b30b052a8baf86ff6f5cb69f5786ebf0d742afcba77eb13abf54fd2b25f47",
+      "sha256": "594218893bad3ef3e96b0a0134b4fcad5ecef5bb75916b621de7248d8671af84",
       "mode": 420
     },
     {
@@ -63,7 +63,7 @@
     },
     {
       "path": "autoplay.py",
-      "sha256": "d0134a9b88380f2a169d902dc0b2060d3de391c6fb9b9b8e54acbb1e7672c08a",
+      "sha256": "bb5b78aafa722200685a3540384c6747fc4867126e86cfc0967a844444e15daa",
       "mode": 420
     },
     {
@@ -167,13 +167,23 @@
       "mode": 420
     },
     {
+      "path": "linux/native/tests/fixtures/s650-rejected-gps.json",
+      "sha256": "883783c52bdbbf2327ed1f01e7ff632543afcfba65de8807ce521470e7306a7a",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/fixtures/s655-rejected-npc-gps.json",
+      "sha256": "fee0136e6d8b57bed3d89b7bb1081b61b67f8e244561f09143663ece46620000",
+      "mode": 420
+    },
+    {
       "path": "linux/native/tests/test_automation_entry.py",
       "sha256": "207734dbb0c7df19f57890918848a1e1f8cdd68f591839c3f5aa7fc222480d0f",
       "mode": 420
     },
     {
       "path": "linux/native/tests/test_autoplay.py",
-      "sha256": "5913c946b3e3965596be92e2e3b91872b89457160efbdc7ecc90ce7bd2214e8d",
+      "sha256": "58a37d913ab8fb5e0d91dcc3467950677874a99d0c5c864adb5e799d014b6e72",
       "mode": 420
     },
     {
@@ -287,6 +297,16 @@
       "mode": 420
     },
     {
+      "path": "linux/native/tests/test_rejected_gps.py",
+      "sha256": "5c976b1c1f1490370bb1bf3c4f0ffe3eea1d3845cee700a34105c094b51d48fb",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_rejected_npc_gps.py",
+      "sha256": "c0abb4580506701263259f15a2735f4298e43d3b5ee5d5d0f17bcfee4371e51a",
+      "mode": 420
+    },
+    {
       "path": "linux/native/tests/test_runtime.py",
       "sha256": "77d805e0c1b34abc9cc7a327e3380d871c92411c707ec1bad50397bf97669c13",
       "mode": 420
@@ -383,7 +403,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "bcf584a62684dace2d686206a4f6b465dd41768439b9072de1f77a900dd607bf",
+      "sha256": "792fc1827483a7b9dbdab343e44bf28a4e31df7faa3f7f51e9f9822a3375817a",
       "mode": 420
     },
     {
@@ -393,7 +413,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "702bca88eff9a93b7a6a14c9944e19d8c212edaa094a8be5218db577b1400063",
+      "sha256": "09bef196979336d652b67250bf9ff0ecaf1fd5e08ea8dc0963c4ac740661bcf6",
       "mode": 420
     },
     {
