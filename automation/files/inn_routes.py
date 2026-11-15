@@ -18,14 +18,14 @@ def _distance(a,b):
 
 
 class InnRoutes:
-    def __init__(self,root=ATLAS):
-        self.root=Path(root)
+    def __init__(self,root=ATLAS,*,npc_id=20,poi_type=2,sprite="p039tail"):
+        self.root=Path(root);self.poi_type=poi_type
         self.worlds=json.loads((self.root/'auxiliary/worldmap/world.json').read_text())['worlds']
         self.maps={m['id']:m for m in json.loads((self.root/'atlas.json').read_text())['maps']}
         records=json.loads((self.root/'auxiliary/npcs.json').read_text())
-        self.inns={n['stage'] for n in records if n.get('npc')==20 and n.get('character')=='p039tail'}
+        self.inns={n['stage'] for n in records if n.get('npc')==npc_id and n.get('character')==sprite}
         self._inn_dialogues={(n['stage'],n.get('file'),index)
-            for n in records if n.get('npc')==20 and n.get('character')=='p039tail'
+            for n in records if n.get('npc')==npc_id and n.get('character')==sprite
             for index in n.get('texts',[])}
         self._masks={}
 
@@ -97,7 +97,7 @@ class InnRoutes:
                                          (passage['tx'],passage['ty'])))
         doors={i:[] for i in range(len(spots))}
         for door in world.get('doors',[]):
-            if any(p[0]==2 for p in door.get('pois',[])):
+            if any(p[0]==self.poi_type for p in door.get('pois',[])):
                 doors[door['spot']].append(door)
         counter=itertools.count();queue=[(0,next(counter),start,map_id,position,[])];best={};choices=[]
         first_costs={}
@@ -116,7 +116,7 @@ class InnRoutes:
             if choices and total>min(c['cost'] for c in choices):continue
             if current in self.inns and current not in excluded:
                 for poi in spot.get('pois',[]):
-                    if poi[0]!=2:continue
+                    if poi[0]!=self.poi_type:continue
                     # Spot POIs use the common spot frame, like world links.
                     target=self._local(spot,current,(spot['x']+poi[1],spot['y']+poi[2]))
                     if not self._contains(current,target):continue

@@ -145,6 +145,10 @@ class Supervisor:
         from stall_watch import StallWatch
         self.stall_watch=StallWatch(self.session,clock=self.clock)
         self.stall_trigger=None;self.repair_in_progress=False
+        from battle_policy import BattlePlanner
+        from supplies_recovery import SuppliesRecovery
+        self.battle_planner=BattlePlanner(self.session);self.battle_decision=None
+        self.supplies_recovery=SuppliesRecovery(self.session,clock=self.clock);self.supplies_decision=None
         if repair_with_codex and self.repair_manager is None:
             from codex_repair import CodexRepair
             self.repair_manager=CodexRepair(self.session)
@@ -312,6 +316,8 @@ class Supervisor:
             'battle_space_enabled':self.battle_space,'codex_repair_enabled':self.repair_manager is not None,
             'background_input_enabled':self.state.get('native_background_input') is True,
             'inn_recovery':self.inn_recovery.report(),
+            'supplies_recovery':self.supplies_recovery.report(),
+            'tactical_battle_enabled':self.battle_space and self.state.get('native_battle_control') is True,
             'stall_repair_pending':self.stall_trigger['reason'] if self.stall_trigger else None,
             'repair_game_state_log':str(self.stall_watch.path),
             'cached_route_available':self.cached_route is not None,'post_battle_recovery':self.post_battle_since is not None,
@@ -432,7 +438,12 @@ class Supervisor:
             if owner.game._quest_step(fresh)!=expected_quest:raise InputPaused('quest_changed')
             battle=fresh.get('battle') or {};story=fresh.get('story') or {}
             if key=='space':
-                if action in ('inn_stay','inn_interact'):
+                if action=='supplies_interact':
+                    decision=owner.supplies_recovery.decide(fresh)
+                    if not decision or decision.get('action')!=action:raise InputPaused('shop_state_changed')
+                    if (decision.get('npc') or {}).get('entity_id')!=(owner.supplies_decision.get('npc') or {}).get('entity_id'):
+                        raise InputPaused('merchant_changed')
+                elif action in ('inn_stay','inn_interact'):
                     decision=owner.inn_recovery.decide(fresh)
                     if not decision or decision.get('action')!=action:raise InputPaused('inn_state_changed')
                     if action=='inn_stay' and decision.get('cost_bits')!=owner.inn_decision.get('cost_bits'):
@@ -559,6 +570,68 @@ class Supervisor:
             return {'reason':'inn_stay_submitted' if action=='inn_stay' else 'inn_interaction_attempted',
                     'current':self.game.request('status')}
 
+    def automation_parameters(self,state):
+        quest=state.get('main_quest') or {}
+        return {'expected_map':state['map'],'expected_pid':self.expected_pid,
+                'expected_quest':{k:quest.get(k) for k in ('chapter','step')}}
+
+    @staticmethod
+    def battle_story_allowed(state):
+        story=state.get('story') or {}
+        return not story.get('active') or (story.get('telemetry_complete') is True and story.get('script_complete') is True
+                    and story.get('typing') is False and story.get('awaiting_choice') is False
+                    and story.get('choice_count')==0 and story.get('submitted') is False)
+
+    def perform_battle_action(self,decision):
+        attempted=False
+        try:
+            with self.game.navigation_lease():
+                before=self.game.request('status');self.check_input(before,self.state['map'])
+                if self.game._quest_step(before)!=self.game._quest_step(self.state):raise InputPaused('quest_changed')
+                if before.get('native_battle_control') is not True:raise InputPaused('battle_control_unavailable')
+                battle=before.get('battle') or {}
+                if not self.battle_story_allowed(before):raise InputPaused('modal_changed')
+                if not battle.get('command_ready') or battle.get('menu_token')!=decision['expected_token']:
+                    raise InputPaused('battle_menu_changed')
+                parameters={k:decision[k] for k in ('expected_token','option_index','target_group') if k in decision}
+                operation='battle_back' if decision.get('back') else 'battle_choose'
+                attempted=True
+                reply=self.game.request(operation,**parameters,**self.automation_parameters(before))
+                after=reply.get('after') or self.game.request('status')
+                self.battle_planner.note_result(decision,before,after)
+                return {'reason':'battle_menu_action','current':after}
+        except BaseException:
+            # Only a proven local pre-dispatch failure may release a token.
+            # A missing RPC reply can mean the action was already accepted.
+            if not attempted:self.battle_planner.cancel(decision)
+            raise
+
+    def perform_supplies_action(self,action):
+        expected_map=self.state['map'];fresh=self.game.request('status');self.check_input(fresh,expected_map)
+        decision=self.supplies_recovery.decide(fresh)
+        if not decision or decision.get('action')!=action:raise InputPaused('supplies_state_changed')
+        self.supplies_decision=decision
+        if action=='supplies_travel':
+            goal=tuple(decision['destination']);options={}
+            if decision.get('npc'):
+                from world_map import WorldMap,NoRouteError
+                try:destination=WorldMap(expected_map).interaction_destination((fresh['x'],fresh['y']),goal)
+                except NoRouteError:return {'reason':'local_route_unavailable','current':fresh}
+                options['interaction_target']=goal;goal=destination
+            return self.game.follow_trace(seconds=12,destination=goal,cross_map=decision['cross_map'],**options)
+        with self.game.navigation_lease():
+            if action=='supplies_align':
+                result=self.game.move(*decision['step'],focus=False,quiet=True,expected_map=expected_map,expected_pid=self.expected_pid)
+                return {'reason':'shop_alignment_attempted','current':result['after']}
+            if action=='supplies_interact':
+                self.game.press_game_key(self.window,'space');self.wait(.25)
+                return {'reason':'shop_interaction_attempted','current':self.game.request('status')}
+            parameters={k:decision[k] for k in ('mode','item_id','party_slot','quantity','unit_bits','expected_offer_token',
+                         'expected_state_token','reserve_bits','max_total_bits') if k in decision}
+            reply=self.game.request('supplies_step',**parameters,**self.automation_parameters(fresh))
+            plan=reply.get('plan') or {}
+            return {'reason':plan.get('reason','supplies_step'),'current':reply.get('after') or self.game.request('status'),'plan':plan}
+
     def cycle(self):
         self.cycles+=1;self.check_stop()
         try:self.state=self.game.request('status')
@@ -590,20 +663,30 @@ class Supervisor:
         except StopRequested:raise
         except InputPaused as error:self.pause(str(error));return
         except Exception:self.pause('popup_check_failed',2);return
+        self.battle_planner.observe(self.state)
         current=fingerprint(self.state)
         if self.last_seen is not None and current!=self.last_seen:
             self.no_progress=0;self.cooldown=0
         self.last_seen=current
         planning=self.routing_state(self.state)
         self.inn_decision=self.inn_recovery.decide(self.state)
+        self.supplies_decision=None if self.inn_decision else self.supplies_recovery.decide(self.state)
+        self.battle_decision=None
         if self.inn_decision:
             action,reason=self.inn_decision['action'],self.inn_decision['reason']
             if action=='inn_recovered':
                 self.cooldown=0;self.no_progress=0;self.progress_events+=1
                 self.publish('waiting',reason,action=action);return
+        elif self.supplies_decision:
+            action,reason=self.supplies_decision['action'],self.supplies_decision['reason']
         else:
             action,reason=policy(planning,self.quest,self.scene_targets,self.boundary_ready(self.state),self.battle_space)
             if planning is not self.state and action=='follow':action='cached_recovery';reason='post_battle_cached_route'
+        battle=self.state.get('battle') or {}
+        if self.battle_space and self.state.get('native_battle_control') is True and battle.get('active') and not battle.get('can_advance'):
+            self.battle_decision=self.battle_planner.decide(self.state) if self.battle_story_allowed(self.state) else None
+            action='battle_back' if self.battle_decision and self.battle_decision.get('back') else ('battle_choice' if self.battle_decision else None)
+            reason=self.battle_decision['reason'] if self.battle_decision else ('modal_changed' if battle.get('command_ready') and self.battle_story_allowed(self.state) else 'battle_tactics_wait')
         now=self.clock()
         if self.rejected_gps is not None:
             if (self.gps_signature(self.state)!=self.rejected_gps
@@ -622,16 +705,19 @@ class Supervisor:
             elif now-self.empty_since>=10 and now-self.last_refresh>=30:action='gps_refresh'
         else:self.empty_since=None
         if action is None:
+            if reason=='modal_changed' and battle.get('command_ready'):self.record_watch(self.state,reason,'battle_choice')
             self.maybe_repair(reason)
             self.pause(reason);return
-        if now<self.cooldown and not action.startswith('inn_'):self.pause('no_progress_backoff',min(1,self.cooldown-now));return
+        if now<self.cooldown and not action.startswith(('inn_','supplies_','battle_')):self.pause('no_progress_backoff',min(1,self.cooldown-now));return
         signature=self.recovery_signature(self.state)
         if action=='follow' and self.pending_recovery==signature:
             action='local_recovery';self.pending_recovery=None
         self.publish('acting',reason,action=action)
         try:
             with self.guarded_actions(action),(self.session/'autoplay-actions.log').open('a') as log,redirect_stdout(log),redirect_stderr(log):
-                if action.startswith('inn_'):result=self.perform_inn_action(action)
+                if action.startswith('battle_'):result=self.perform_battle_action(self.battle_decision)
+                elif action.startswith('supplies_'):result=self.perform_supplies_action(action)
+                elif action.startswith('inn_'):result=self.perform_inn_action(action)
                 elif action=='align':result=self.align_interaction()
                 elif action=='talk':result=self.game.talk(seconds=12,max_pages=6)
                 elif action=='space':result=self.game.scene(seconds=1,max_presses=1)
@@ -656,6 +742,7 @@ class Supervisor:
             self.wait(1);return
         self.actions+=1
         if action.startswith('inn_'):self.inn_recovery.note_result(self.inn_decision,result)
+        if action.startswith('supplies_'):self.supplies_recovery.note_result(self.supplies_decision,result)
         after=result.get('current',self.state);result_reason=result.get('reason','unknown_result')
         self.remember_route(after)
         interrupted=bool((after.get('battle') or {}).get('active') or (after.get('story') or {}).get('active'))
@@ -663,6 +750,8 @@ class Supervisor:
             self.progress_events+=1;self.no_progress=0;self.cooldown=0
         # Ready story/result pages need not change position or quest. Their
         # freshly verified Space action already has its own one-second bound.
+        elif action in ('battle_choice','battle_back','supplies_step'):
+            self.cooldown=0
         elif not (interrupted and action in ('follow','local_recovery','cached_recovery','space')):
             self.no_progress+=1;self.cooldown=self.clock()+min(60,2**min(self.no_progress,6))
         self.state=after;self.last_seen=fingerprint(after)
@@ -721,7 +810,7 @@ def main():
     parser.add_argument('--scene-target',action='append',type=scene_target,default=[],
         help='Explicitly allow an unhooked scene at CHAPTER:STEP:MAP; Space can confirm choices')
     parser.add_argument('--resume',action='store_true',help='Remove a previous stop flag before starting')
-    parser.add_argument('--battle-space',action='store_true',help='Send one normal Space per cycle during verified active combat as well as battle results')
+    parser.add_argument('--battle-space',action='store_true',help='Enable tactical skills/items on a capable bridge; use normal Space for results and legacy combat')
     parser.add_argument('--repair-with-codex',action='store_true',help='Pause and request a bounded Codex repair after repeated genuine controller failures')
     modes=parser.add_mutually_exclusive_group()
     modes.add_argument('--status',action='store_true',help='Print the saved supervisor state without input')

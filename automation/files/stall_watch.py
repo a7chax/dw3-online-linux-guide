@@ -5,6 +5,7 @@ poll the game, parse wall-clock timestamps, send input, or spawn repair workers.
 """
 from collections import OrderedDict,deque
 import copy
+import hashlib
 import json
 import math
 import os
@@ -14,9 +15,9 @@ import tempfile
 import time
 
 NAV_FAILURES={'unable_to_advance','no_map_exit_detected','local_route_unavailable'}
-NAV_ACTIONS={'follow','navigate','move','inn_travel','align_interaction','inn_align','local_recovery','cached_recovery'}
+NAV_ACTIONS={'follow','navigate','move','inn_travel','align_interaction','inn_align','local_recovery','cached_recovery','supplies_travel','supplies_align'}
 ACTIONS=NAV_ACTIONS|{'talk','space','scene','story_space','battle_space','inn_interact','inn_stay',
-                     'gps_refresh','popup_close','dismiss','poll','wait'}
+                     'gps_refresh','popup_close','dismiss','poll','wait','battle_choice','battle_back','supplies_step','supplies_interact'}
 REASONS=NAV_FAILURES|{'poll','modal_changed','no_progress_backoff','time_limit','battle_space',
     'story_space','dialogue_closed','press_limit','max_cycles','action_failed','focus_lost',
     'stale_state','loading_map','session_changed','stop_requested','inn_insufficient_bit',
@@ -67,6 +68,32 @@ def sanitize_state(state):
     for key in ('battle','story','dialogue'):
         safe[key]=_fields(state.get(key),('choice_count','selected_choice','page_index','page_count','entity_id','text_file','text_index'),
             ('active','telemetry_complete','transitioning','result_ready','can_advance','typing','awaiting_choice','submitted','script_complete','ready_to_close'))
+    battle=state.get('battle') or {};battle=battle if isinstance(battle,dict) else {}
+    safe['battle'].update(_fields(battle,('target_group','selected_item_id'),('command_ready','command_telemetry_complete')))
+    if battle.get('menu') in {'main','items','item_target','switch','digivolve'}:safe['battle']['menu']=battle['menu']
+    def rows(source,numbers,flags=(),limit=32):
+        return [_fields(row,numbers,flags) for row in source[:limit]] if isinstance(source,list) else []
+    if isinstance(battle.get('menu_token'),str) and len(battle['menu_token'])<=256:
+        safe['battle']['menu_token_hash']=hashlib.sha256(battle['menu_token'].encode()).hexdigest()
+    if isinstance(battle.get('actor'),dict):safe['battle']['actor']=_fields(battle['actor'],('group','active_index','form_id','hp','max_hp','ds','max_ds'))
+    for key in ('fighters','party'):
+        if key in battle:safe['battle'][key]=rows(battle[key],('group','slot','form_id','hp','max_hp','ds','max_ds'),('controlled',))
+    if isinstance(battle.get('options'),list):
+        safe['battle']['options']=[]
+        for source in battle['options'][:32]:
+            row=_fields(source,('index','skill_index','ds_cost','item_id','target_slot'),('enabled',))
+            if isinstance(source,dict) and source.get('kind') in {'attack','skill','items','item','item_target','switch','switch_target','digivolve','digivolve_target','escape'}:row['kind']=source['kind']
+            safe['battle']['options'].append(row)
+    supplies=state.get('supplies') or {};supplies=supplies if isinstance(supplies,dict) else {}
+    if supplies:
+        clean=_fields(supplies,(),('telemetry_complete','rules_loaded','inventory_open','world_modal'))
+        clean['inventory']=rows(supplies.get('inventory'),('id','item_id','quantity','heal_hp','heal_ds'),limit=64)
+        clean['party']=rows(supplies.get('party'),('slot','id','hp','max_hp','ds','max_ds'))
+        shop=supplies.get('shop') or {};shop=shop if isinstance(shop,dict) else {}
+        clean['shop']=_fields(shop,('shop_id','quantity','selected_index'),('active','telemetry_complete','submitting','closed'))
+        if shop.get('mode') in {'buy','sell'}:clean['shop']['mode']=shop['mode']
+        clean['shop']['offers']=rows(shop.get('offers'),('index','id','item_id','unit_bits','heal_hp','heal_ds'),limit=64)
+        safe['supplies']=clean
     return safe
 
 

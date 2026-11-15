@@ -40,7 +40,7 @@ def repair_context(reason,state,quest,error_type=None,*,history=()):
             'state':sanitize_state(state),'history':filtered,
             'quest':{k:quest[k] for k in ('chapter','step','target_map','required_action') if k in quest},
             'trace':{k:(state.get('trace') or {}).get(k) for k in ('enabled','route_type','steps_remaining')},
-            'files':['autoplay.py','ai-game.py','world_map.py','inn_routes.py','inn_recovery.py','stall_watch.py','linux/native/tests']}
+            'files':['autoplay.py','ai-game.py','world_map.py','inn_routes.py','inn_recovery.py','stall_watch.py','battle_policy.py','supplies_recovery.py','shop_routes.py','linux/native/tests']}
 
 
 def failure_key(context):

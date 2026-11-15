@@ -24,6 +24,17 @@ class StallTests(unittest.TestCase):
     def observe(self,at,reason='poll',action=None):
         self.now=at;return self.watch.observe(self.state,reason,action)
 
+    def test_tactical_and_supply_history_keeps_numeric_state_without_text(self):
+        self.state['battle']={'active':True,'command_ready':True,'menu_token':'private-arbitrary-token',
+            'actor':{'form_id':7,'hp':80,'max_hp':100,'ds':12,'name':'private-name'},
+            'options':[{'index':1,'kind':'skill','ds_cost':5,'enabled':True,'label':'private-name'}]}
+        self.state['supplies']={'telemetry_complete':True,'inventory':[{'id':10,'quantity':2,'heal_hp':60,'name':'private-name'}],
+            'shop':{'active':True,'offers':[{'id':10,'unit_bits':200,'description':'private-name'}]}}
+        safe=sanitize_state(self.state)
+        self.assertEqual(safe['battle']['actor']['ds'],12)
+        self.assertEqual(safe['supplies']['inventory'][0]['quantity'],2)
+        self.assertNotIn('private-name',json.dumps(safe));self.assertNotIn('private-arbitrary-token',json.dumps(safe))
+
     def test_navigation_requires_three_failed_actions_and_sixty_seconds(self):
         self.observe(0)
         for at in (10,30,59):self.assertIsNone(self.observe(at,'unable_to_advance','follow'))

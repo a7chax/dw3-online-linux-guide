@@ -78,6 +78,41 @@ public final class ControlBridge implements AutoCloseable {
 
     private JsonElement dispatch(JsonObject request) throws Exception {
         String operation=request.get("op").getAsString();
+        if(operation.equals("battle_choose") || operation.equals("battle_back"))return onRender(()->{
+            JsonObject before=guardAutomationInput(request);Object current=screen();
+            JsonObject story=before.has("story")?before.getAsJsonObject("story"):null;
+            if(story!=null && story.get("active").getAsBoolean() && !completedStory(story))
+                throw new IllegalStateException("Story blocks battle input");
+            if(operation.equals("battle_back"))BattleControl.back(current,request);else BattleControl.choose(current,request);
+            JsonObject result=new JsonObject();result.add("before",before);result.add("after",status());return result;
+        });
+        if(operation.equals("supplies_step")) {
+            int[] pressed={-1};JsonObject[] plan={null};JsonElement before;
+            try {
+                before=onRender(()->{
+                    JsonObject snapshot=guardAutomationInput(request);Object current=screen();
+                    JsonObject supplies=SuppliesControl.snapshot(current);
+                    if(!request.has("expected_state_token") || !request.get("expected_state_token").equals(supplies.get("state_token")))
+                        throw new IllegalStateException("Supplies state changed");
+                    String mode=request.get("mode").getAsString();
+                    plan[0]=switch(mode) {
+                        case "inspect"->SuppliesControl.planInspect(current);
+                        case "close"->SuppliesControl.planClose(current);
+                        case "use"->SuppliesControl.planUse(current,request.get("item_id").getAsInt(),request.get("party_slot").getAsInt());
+                        case "buy"->{guardSuppliesBudget(request,supplies);yield SuppliesControl.planBuy(current,request.get("item_id").getAsInt(),request.get("quantity").getAsInt(),request.get("expected_offer_token").getAsString());}
+                        default->throw new IllegalArgumentException("Unsupported supplies action");
+                    };
+                    if(plan[0].has("key") && !plan[0].get("key").isJsonNull()) {
+                        pressed[0]=normalKey(plan[0].get("key").getAsString());key(pressed[0],1);
+                    }
+                    return snapshot;
+                });
+                if(pressed[0]>=0)Thread.sleep(120);
+            } finally {
+                if(pressed[0]>=0)onRender(()->{key(pressed[0],0);return JsonNull.INSTANCE;},false);
+            }
+            Thread.sleep(35);JsonObject result=new JsonObject();result.add("before",before);result.add("plan",plan[0]);result.add("after",onRender(this::status));return result;
+        }
         if(operation.equals("capture"))return onRender(()->capture(request));
         if(operation.equals("export_world")) {
             java.util.concurrent.atomic.AtomicReference<Object> assets=new java.util.concurrent.atomic.AtomicReference<>();
@@ -217,6 +252,7 @@ public final class ControlBridge implements AutoCloseable {
         output.addProperty("native_background_input",backgroundWindow!=null);
         output.addProperty("native_capture",true);
         output.addProperty("native_inn_recovery",true);
+        output.addProperty("native_battle_control",true);output.addProperty("native_supplies_control",true);
         output.add("window_focused",windowAttribute(0x00020001));
         output.add("window_minimized",windowAttribute(0x00020002));
         output.addProperty("movement_ready","world".equals(output.get("phase").getAsString())
@@ -244,9 +280,12 @@ public final class ControlBridge implements AutoCloseable {
             output.add("party",partySnapshot(current));
             output.add("wallet",walletSnapshot(current));
             output.add("inn",innSnapshot(current));
+            output.add("supplies",SuppliesControl.snapshot(current));
             String map=output.has("map") && !output.get("map").isJsonNull()?output.get("map").getAsString():null;
             JsonObject inns=nearbyInnsSnapshot(current,map);
             output.add("nearby_inns",inns.get("npcs"));output.add("nearby_inns_complete",inns.get("telemetry_complete"));
+            JsonObject shops=nearbyShopsSnapshot(current,map);
+            output.add("nearby_shops",shops.get("npcs"));output.add("nearby_shops_complete",shops.get("telemetry_complete"));
             JsonObject dialogue=dialogueSnapshot(current);
             if(dialogue!=null)output.add("dialogue",dialogue);
             JsonObject story=storySnapshot(current);
@@ -315,6 +354,7 @@ public final class ControlBridge implements AutoCloseable {
             if(outcome!=null)state.addProperty("result",outcome);
             state.addProperty("telemetry_complete",true);
         } catch(Exception unavailable) { /* Keep unknown battle input disabled. */ }
+        for(java.util.Map.Entry<String,JsonElement> entry:BattleControl.snapshot(current).entrySet())state.add(entry.getKey().equals("telemetry_complete")?"command_telemetry_complete":entry.getKey(),entry.getValue());
         return state;
     }
 
@@ -399,6 +439,7 @@ public final class ControlBridge implements AutoCloseable {
     private static int normalKey(String name) {
         return switch(name) {
             case "space"->32;case "enter"->257;case "g"->71;case "x"->88;
+            case "i"->73;case "up"->265;case "down"->264;case "left"->263;case "right"->262;
             default->throw new IllegalArgumentException("Unsupported normal game key");
         };
     }
@@ -416,6 +457,61 @@ public final class ControlBridge implements AutoCloseable {
             throw new IllegalStateException("Game process changed before UI input");
         guardProcess(request);
         return snapshot;
+    }
+    private JsonObject guardAutomationInput(JsonObject request)throws Exception {
+        if(!request.has("expected_map") || !request.has("expected_pid"))throw new IllegalArgumentException("Expected game identity is required");
+        JsonObject snapshot=guardUiInput(request);
+        if(request.has("expected_quest")) {
+            JsonObject expected=request.getAsJsonObject("expected_quest"),quest=snapshot.getAsJsonObject("main_quest");
+            if(quest==null || !expected.get("chapter").equals(quest.get("chapter")) || !expected.get("step").equals(quest.get("step")))
+                throw new IllegalStateException("Quest changed before input");
+        }
+        return snapshot;
+    }
+    private static boolean completedStory(JsonObject story) {
+        return truth(story,"telemetry_complete") && truth(story,"script_complete")
+                && falsity(story,"typing") && falsity(story,"awaiting_choice") && falsity(story,"submitted")
+                && story.has("choice_count") && !story.get("choice_count").isJsonNull() && story.get("choice_count").getAsInt()==0;
+    }
+    private static boolean truth(JsonObject object,String field) {return object.has(field) && !object.get(field).isJsonNull() && object.get(field).getAsBoolean();}
+    private static boolean falsity(JsonObject object,String field) {return object.has(field) && !object.get(field).isJsonNull() && !object.get(field).getAsBoolean();}
+    private static void guardSuppliesBudget(JsonObject request,JsonObject supplies) {
+        int count=request.get("quantity").getAsInt(),price=request.get("unit_bits").getAsInt();
+        long reserve=request.get("reserve_bits").getAsLong(),budget=request.get("max_total_bits").getAsLong(),total=(long)count*price;
+        if(count<1 || count>5 || price<=0 || reserve<5000 || budget<0 || budget>5000 || total>budget)
+            throw new IllegalArgumentException("Supplies purchase exceeds its bounds");
+        JsonObject wallet=supplies.getAsJsonObject("wallet");
+        if(!truth(wallet,"telemetry_complete") || wallet.get("bits").getAsLong()-total<reserve)
+            throw new IllegalStateException("Supplies purchase would use the reserve");
+        boolean matched=false;
+        for(JsonElement value:supplies.getAsJsonObject("shop").getAsJsonArray("offers")) {
+            JsonObject offer=value.getAsJsonObject();
+            if(offer.get("id").equals(request.get("item_id")) && offer.get("unit_bits").getAsInt()==price)matched=true;
+        }
+        if(!matched)throw new IllegalStateException("Shop price changed");
+    }
+    private static JsonObject nearbyShopsSnapshot(Object current,String map) {
+        JsonObject result=new JsonObject();JsonArray rows=new JsonArray();result.add("npcs",rows);result.addProperty("telemetry_complete",false);
+        try {
+            // Merchant identity uses the original bundled map/sprite catalog.
+            // Runtime interaction IDs are a separate namespace.
+            java.util.Set<String> maps=java.util.Set.of("s245","s246","s250","s251","s425","s426","s500","s501","s660","s661","s760","s761","s931","s932","s957");
+            if(maps.contains(map))for(Object npc:(java.util.List<?>)get(current,"Y")) {
+                int interaction=((Number)get(npc,"g")).intValue();
+                if(!"p038wiza".equals(get(npc,"a")) || interaction<0)continue;
+                JsonObject row=new JsonObject();row.addProperty("map",map);row.addProperty("shop_candidate",true);
+                row.addProperty("entity_id",((Number)get(npc,"b")).intValue());row.addProperty("interaction_id",interaction);
+                int x=((Number)get(npc,"c")).intValue(),y=((Number)get(npc,"d")).intValue();row.addProperty("x",x);row.addProperty("y",y);
+                int radius=((Number)get(npc,"f")).intValue();
+                int px=(int)Math.floor(((Number)get(current,"ax")).doubleValue()),py=(int)Math.floor(((Number)get(current,"ay")).doubleValue()),facing=((Number)get(current,"az")).intValue();
+                Method check=Class.forName("bF").getDeclaredMethod("a",int.class,int.class,int.class,int.class,int.class,int.class);check.setAccessible(true);
+                row.addProperty("can_interact",(Boolean)check.invoke(null,px,py,facing,x,y,radius));JsonArray facings=new JsonArray();
+                for(int f=0;f<8;f++)if((Boolean)check.invoke(null,px,py,f,x,y,radius))facings.add(f);
+                row.add("interaction_facings",facings);rows.add(row);
+            }
+            result.addProperty("telemetry_complete",true);
+        }catch(Exception unknown){}
+        return result;
     }
     private static JsonObject nearbyInnsSnapshot(Object current,String map) {
         JsonObject output=new JsonObject();JsonArray npcs=new JsonArray();

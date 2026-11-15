@@ -31,7 +31,7 @@ cd "/path/to/DW3 Online"
 uv run --locked automation.py
 ```
 
-The entry point builds a missing/stale native bridge and missing executable/runtime outputs, logs in or reuses the monitored game, validates/reloads the game-only input bridge, and starts persistent control. It enables selected-option combat Space, known-popup checks and bounded Codex repair. It detects an existing session controller rather than creating duplicate input. Normal control runs in Python without AI calls; source repair needs an installed, authenticated Codex CLI. Use `--no-codex-repair` or `--no-battle-space` to disable those respective modes, and `--max-cycles 3` for a finite check. This does not download original game inputs, install system build tools, or supply private credentials.
+The entry point builds a missing/stale native bridge and missing executable/runtime outputs, logs in or reuses the monitored game, validates/reloads the game-only input bridge, and starts persistent control. It enables tactical skills, HP/DS supplies, known-popup checks and bounded Codex repair. It detects an existing session controller rather than creating duplicate input. Normal control runs in Python without AI calls; source repair needs an installed, authenticated Codex CLI. Use `--no-codex-repair` or `--no-battle-space` to disable those respective modes, and `--max-cycles 3` for a finite check. This does not download original game inputs, install system build tools, or supply private credentials.
 
 Inspect or stop without setup/login/input:
 
@@ -85,7 +85,7 @@ For an already prepared monitored world, start the advanced direct supervisor wi
 uv run --locked python autoplay.py --resume
 ```
 
-To additionally confirm the currently selected combat option with normal Space, explicitly add `--battle-space`. This does not choose items or tactics. Optional `--repair-with-codex` requires a separately installed, authenticated Codex CLI; normal control does not require an AI service. Both capabilities and their limits are described in [README-AUTOPLAY.md](files/README-AUTOPLAY.md) and [AI-GAME-CONTROL.md](files/AI-GAME-CONTROL.md).
+To enable active-combat skill/item decisions with the current native bridge, explicitly add `--battle-space`. This flag retains its historical name; old direct supervisors without the tactical capability retain selected-option Space compatibility. Optional `--repair-with-codex` requires a separately installed, authenticated Codex CLI; normal control does not require an AI service. Both capabilities and their limits are described in [README-AUTOPLAY.md](files/README-AUTOPLAY.md) and [AI-GAME-CONTROL.md](files/AI-GAME-CONTROL.md).
 
 ```bash
 uv run --locked python autoplay.py --resume --battle-space
@@ -158,3 +158,11 @@ uv run --no-project python -B -m unittest discover -s automation/tests -v
 ```
 
 The generator takes the public root `AI-SETUP.md` and playbook copies from this repository, preserves the game-relative source layout, and regenerates `manifest.json`. It does not commit, push, build, or control the game.
+
+## Tactical skills and supplies
+
+The current one-command entry upgrades the monitored bridge to expose verified battle options and HP/DS inventory/shop telemetry. The Python planner selects enabled affordable skills, useful battle items and living reserves for forced switches. It learns bounded observed enemy HP-loss comparisons, which can include other combatants or status effects. Skill animation/range values are not damage power; the inspected client does not establish a server damage formula.
+
+World recovery uses owned HP/DS items before restocking. It targets three recovery items of each type, purchases at most five at once, and caps each restock at min(10% starting BIT, 5,000 BIT, wallet minus a 5,000 BIT reserve). Every step rechecks the live shop price, wallet and menu token. Purchases require confirmed stock gain and BIT loss; item use requires inventory loss and HP/DS gain. Unconfirmed operations back off rather than repeating purchases. Cash and permanent-stat items are excluded.
+
+See [the runtime guide](files/README-AUTOPLAY.md), [battle evidence](files/docs/battle-research.md), and [item/shop evidence](files/docs/item-shop-research.md). Native snapshots and normal menu handlers are tested with isolated fixtures; live evidence is recorded separately in the runtime guide. These controls still depend on the original prepared game and an active desktop/OpenGL session.

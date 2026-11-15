@@ -13,7 +13,7 @@
     },
     {
       "path": "AI-GAME-CONTROL.md",
-      "sha256": "cc2eeeb35e61cbcf99ff38467572d9708b048e4d513bd3a55c9abbabeddd533d",
+      "sha256": "4f1ebcc61b9dc716426301af20257407991fc1eb0253d3f825fdd05a12a20164",
       "mode": 420
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "594218893bad3ef3e96b0a0134b4fcad5ecef5bb75916b621de7248d8671af84",
+      "sha256": "cb9a6455354c4429c43a5b2c6b2d1b375ab8c94667441179eb7781431d985685",
       "mode": 420
     },
     {
@@ -58,17 +58,22 @@
     },
     {
       "path": "automation.py",
-      "sha256": "f939e451c75223a35c95eeb5b62a081995b715b069e75ccb90baecc632bff1c7",
+      "sha256": "85b4af32305d82078158d3e2d9ddc3d6ba27302ce3167dda02f75402be563299",
       "mode": 420
     },
     {
       "path": "autoplay.py",
-      "sha256": "bb5b78aafa722200685a3540384c6747fc4867126e86cfc0967a844444e15daa",
+      "sha256": "21500a100bf08a5ccd6ac81727d2f1faa3ec0503672a8d8cd7250f83eab15583",
+      "mode": 420
+    },
+    {
+      "path": "battle_policy.py",
+      "sha256": "d82ead1ea1e39937dc39b37018f77b06df82c53debccf368f8e9c38934799523",
       "mode": 420
     },
     {
       "path": "codex_repair.py",
-      "sha256": "66d541426dbc3e8555d2cd708a4b37b59f7976a65c3fec262292084f328b1e97",
+      "sha256": "c310c836fc60005b0090fea4e63ebf438c209426354dd985087a6713fc7071b3",
       "mode": 420
     },
     {
@@ -77,8 +82,23 @@
       "mode": 420
     },
     {
+      "path": "docs/battle-research.md",
+      "sha256": "df9963f5e51fde390fa065441fd9c525decd5bbb1959fdc89f13e5fbfe8f3c2b",
+      "mode": 420
+    },
+    {
       "path": "docs/inn-routing-findings.md",
       "sha256": "7946914c6aca86545a41bb3e3b7306c9e7ae7ea7e7549d2a219285c9021b606b",
+      "mode": 420
+    },
+    {
+      "path": "docs/item-shop-research.md",
+      "sha256": "6e9eea5736210236269879f4325994785e3df052dfba34375fa1c7edf4439ec4",
+      "mode": 420
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-15-battle-skills-items.md",
+      "sha256": "07880287a7f871b4ce81ab99602243b08d974d009347edec9901711629a5cc96",
       "mode": 420
     },
     {
@@ -93,7 +113,7 @@
     },
     {
       "path": "inn_routes.py",
-      "sha256": "794d71fe924558a8f3f691db7b99b94b99a39878f53e630bd732b37db67f76b3",
+      "sha256": "b4c0a3974d92a825ec972e756ed33879ececb7376f981c9f751db8f6320a2f18",
       "mode": 420
     },
     {
@@ -142,8 +162,13 @@
       "mode": 420
     },
     {
+      "path": "linux/native/src/dw3/linux/BattleControl.java",
+      "sha256": "d594ff75db5762284c38f10aad84046a1e0c93f002bebd8f53e141c4e6ea815f",
+      "mode": 420
+    },
+    {
       "path": "linux/native/src/dw3/linux/ControlBridge.java",
-      "sha256": "a23d21f69f5d32e9c2ac8e646a06a46cac655c4effadac49b5219811c8847eb1",
+      "sha256": "cfb0ccfa905a490502a4ed38e391962e005a67d262d8e2feec27f1c066030623",
       "mode": 420
     },
     {
@@ -159,6 +184,11 @@
     {
       "path": "linux/native/src/dw3/linux/StatePrinter.java",
       "sha256": "f91ecaa828cc79bbda3c2cdc00685e33cf103e52f08843a3b7eacea73779e49b",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/dw3/linux/SuppliesControl.java",
+      "sha256": "aa5cfb06fe69bd60b9864aa39c04c330f1631d719b4ee0eac87fa9395ed5dca8",
       "mode": 420
     },
     {
@@ -178,12 +208,22 @@
     },
     {
       "path": "linux/native/tests/test_automation_entry.py",
-      "sha256": "207734dbb0c7df19f57890918848a1e1f8cdd68f591839c3f5aa7fc222480d0f",
+      "sha256": "8a7114d56afcec758b1ea6eedd04bd72e09de5ddb272da184f0b495f3f6228d8",
       "mode": 420
     },
     {
       "path": "linux/native/tests/test_autoplay.py",
       "sha256": "58a37d913ab8fb5e0d91dcc3467950677874a99d0c5c864adb5e799d014b6e72",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_battle_control.py",
+      "sha256": "af1283752402184a29f0c0630922534c6ad9ae73a9568823959a5988e02bb13d",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_battle_policy.py",
+      "sha256": "a9b75a6b2e9a737f8f80a9ad545cda887be6612edd9c1fe3ceb5026345d044de",
       "mode": 420
     },
     {
@@ -317,13 +357,18 @@
       "mode": 420
     },
     {
+      "path": "linux/native/tests/test_shop_routes.py",
+      "sha256": "6f14a392adc6327dd5bd2e7baa91ada637018b6112e17873ff3299f2fda8009e",
+      "mode": 420
+    },
+    {
       "path": "linux/native/tests/test_smart_follow.py",
       "sha256": "b76555a92c5eda6d9de00e442739906cfa7c06a3962a8aadf32062ed4a0e444e",
       "mode": 420
     },
     {
       "path": "linux/native/tests/test_stall_watch.py",
-      "sha256": "d03173cc52e7df1b43c0151ca174dbb86b81d73d7866ea4f08e447b54f49344d",
+      "sha256": "73548952edb8d8f9ded01bbee0890b76390ce8940e999f2592823c7fc11d5b5c",
       "mode": 420
     },
     {
@@ -344,6 +389,21 @@
     {
       "path": "linux/native/tests/test_story_state.py",
       "sha256": "c1994c19679c97fff7a2deef39535ea2b7eb12f0a8141f4f424f511b1261650f",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_supplies_control.py",
+      "sha256": "5965cf4105d0b1a1579483800b6e8e52288717c171b634a51faf484441b4b8b5",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_supplies_recovery.py",
+      "sha256": "87fc45ffbbb1f40c7c7a96eba80d3c6d79b34f778ffbd9a258e6552616c28d36",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_tactical_integration.py",
+      "sha256": "8f58d49732a9009859bcf1dc6b9f7d2498607c17add486046014dd223e6c0aa3",
       "mode": 420
     },
     {
@@ -402,8 +462,13 @@
       "mode": 420
     },
     {
+      "path": "shop_routes.py",
+      "sha256": "05ebf0bab85e4a869f3ff7da917ab1cbd829debb5b737e2518736303a398d184",
+      "mode": 420
+    },
+    {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "792fc1827483a7b9dbdab343e44bf28a4e31df7faa3f7f51e9f9822a3375817a",
+      "sha256": "0944e96208de53a030f5fbbc0cc3ba09da5e0f97251b083356839c7242c1fbca",
       "mode": 420
     },
     {
@@ -413,18 +478,23 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "09bef196979336d652b67250bf9ff0ecaf1fd5e08ea8dc0963c4ac740661bcf6",
+      "sha256": "1e8d4a4ba9f0ff9ab7a19fffb6594f1c073b32fcf0f7f5a0adaccdc1b68d8aea",
       "mode": 420
     },
     {
       "path": "stall_watch.py",
-      "sha256": "a1e222b68014353f536d3b7aedf982e039e3a0a6541d01e25d90212ab9cd5908",
+      "sha256": "1fd029b860a83f70114d5d9ba8c16f4aac5b9f03bfd0e71a3f165e1a4ff1d74e",
       "mode": 420
     },
     {
       "path": "start-ai-game.sh",
       "sha256": "68bd13babd40dbe7157c947bc9ecf75483db4fb87e583e170df70c0e0fb59783",
       "mode": 493
+    },
+    {
+      "path": "supplies_recovery.py",
+      "sha256": "b9b3d19f5998e2af33fc28f38879c32e0e9d436fe1b54785decd7b1e2961741f",
+      "mode": 420
     },
     {
       "path": "uv.lock",
