@@ -63,7 +63,7 @@
     },
     {
       "path": "autoplay.py",
-      "sha256": "faf7a1ecfe4ff933705173076bccd54ebc72ed4f51640058d8cbc4290a883829",
+      "sha256": "bbc79d879151e13ced130f7ea6fd74eed8d7bea0d6c5bc68ea6bc6f7616f419f",
       "mode": 420
     },
     {
@@ -173,7 +173,7 @@
     },
     {
       "path": "linux/native/tests/test_autoplay.py",
-      "sha256": "ed379ffe6a057512d189e496c4815648c74dcca09e2d8da9f6f252c118d6c292",
+      "sha256": "5913c946b3e3965596be92e2e3b91872b89457160efbdc7ecc90ce7bd2214e8d",
       "mode": 420
     },
     {
@@ -378,7 +378,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "7830630180f56ef380aa4dbf053d15092e015b5f53cc9e6bb18eb17152baa9ed",
+      "sha256": "f56ad1f323f78572b01d6db7c8f09330d0c049f88c3bdac7e4dd40183a0e2bc5",
       "mode": 420
     },
     {
@@ -388,7 +388,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "e5cc2be4379c1e2d5b9b6042eadda8c329a3d3265c1f1e1d27e9994a30df22c2",
+      "sha256": "a94bc9e0955ac0c8d2b8a19bd593873f5b957d9cdfd6a73f8786e51c7cdc7580",
       "mode": 420
     },
     {

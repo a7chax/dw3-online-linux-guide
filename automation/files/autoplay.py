@@ -390,7 +390,10 @@ class Supervisor:
                         ready=(modal.get('active') and modal.get('telemetry_complete') is True
                                and not modal.get('transitioning') and not modal.get('submitted')
                                and (modal.get('can_advance') is True or owner.battle_space))
-                        if story.get('active'):ready=False
+                        completed_story=(story.get('telemetry_complete') is True and story.get('script_complete') is True
+                                         and story.get('typing') is False and story.get('awaiting_choice') is False
+                                         and story.get('choice_count')==0 and story.get('submitted') is False)
+                        if story.get('active') and not completed_story:ready=False
                     if expected_modal=='story' and (battle.get('active') or story.get('awaiting_choice')
                             or (story.get('choice_count') or 0)>0):ready=False
                     if not ready:raise InputPaused('modal_changed')

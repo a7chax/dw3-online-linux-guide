@@ -134,7 +134,7 @@ After installing into your own prepared game, building the adapter/runtime, and 
 uv run --locked python -B -m unittest discover -s linux/native/tests -p 'test_*.py' -q
 ```
 
-The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The automatic inn recovery revision passed 220 local automation tests and 8 installer tests. The live inn stay above verified the normal BIT fee, full party revival and resumed quest control; its first innkeeper interaction was assisted before correcting the approach predicate. The four-cycle background check verified popup closure and movement while minimized. Live results belong to the original inspected installation; verify your own setup separately.
+The complete suite includes original-client and built-Java integration checks. A source-only checkout cannot satisfy those inputs. Synthetic policy, movement, and UI fixtures do not send game input. The battle-input revision passed 222 local automation tests and 8 installer tests. A completed background story no longer blocks active combat; unfinished stories and choices retain their input guards. The live inn stay above verified the normal BIT fee, full party revival and resumed quest control; its first innkeeper interaction was assisted before correcting the approach predicate. The four-cycle background check verified popup closure and movement while minimized. Live results belong to the original inspected installation; verify your own setup separately.
 
 ## Maintainers
 

@@ -403,6 +403,30 @@ class AutoplayTests(unittest.TestCase):
         saved=json.loads((self.session/'autoplay-state.json').read_text())
         self.assertTrue(saved['battle_space_enabled']);self.assertFalse(saved['codex_repair_enabled'])
 
+    def test_completed_background_story_does_not_block_active_battle(self):
+        self.supervisor.battle_space=True
+        self.state['battle']={'active':True,'telemetry_complete':True,'transitioning':False,'can_advance':False,'submitted':False}
+        self.state['story']={'active':True,'telemetry_complete':True,'script_complete':True,
+                             'typing':False,'awaiting_choice':False,'choice_count':0,'submitted':False}
+        def combat(**kwargs):
+            self.game.press_game_key(self.supervisor.window,'space')
+            return {'reason':'press_limit','current':copy.deepcopy(self.state)}
+        self.game.scene=combat
+        self.supervisor.run(max_cycles=1)
+        self.assertEqual(self.game.actions,[('key','space')])
+
+    def test_battle_does_not_confirm_unfinished_or_choice_story(self):
+        self.supervisor.battle_space=True
+        for change in ({'script_complete':False},{'awaiting_choice':True},{'choice_count':2},{'telemetry_complete':False}):
+            with self.subTest(change=change):
+                self.state['battle']={'active':True,'telemetry_complete':True,'transitioning':False,'can_advance':False,'submitted':False}
+                self.state['story']={'active':True,'telemetry_complete':True,'script_complete':True,
+                                     'typing':False,'awaiting_choice':False,'choice_count':0,'submitted':False,**change}
+                self.game.actions.clear()
+                def combat(**kwargs):self.game.press_game_key(self.supervisor.window,'space')
+                self.game.scene=combat;self.supervisor.run(max_cycles=1)
+                self.assertEqual(self.game.actions,[])
+
     def test_battle_space_cannot_press_after_battle_closes_or_transitions(self):
         self.supervisor.battle_space=True
         for replacement in (None,{'active':True,'telemetry_complete':True,'transitioning':True,'can_advance':False}):

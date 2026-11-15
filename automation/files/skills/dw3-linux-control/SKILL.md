@@ -60,6 +60,8 @@ Normal operation is deterministic Python without AI calls. The optional `--repai
 After an observed battle ends with empty enabled GPS and `has_reply: false`, recovery refreshes GPS immediately, waits two seconds for a reply, then may use a cached observed endpoint only for unchanged PID/map/quest chapter/step/target. It validates a local atlas path, preserves NPC stand-off/talking and bounded exit crossing, and never replays another map's route. Check `post_battle_recovery`, `cached_route_available`, and the state/event reasons. The session `autoplay-route-cache.json` persists the validated route and pending-battle marker across supervisor restarts; a new game/map/quest identity invalidates it. Focus loss pauses recovery only without background capability. Verify actual position/map movement after recovery instead of treating a refresh key as success.
 
 
+If combat remains at `modal_changed`, inspect both `battle` and `story`. A fully completed background story can coexist with a live fight; the battle guard permits normal Space only when the completed-story telemetry explicitly excludes typing, choices and submission. Preserve blocking for unfinished or unknown story states. The reference records the verified battle-progress case.
+
 ## Automatic inn recovery
 
 `uv run --locked automation.py` also watches the complete party, including reserves. If any Digimon has HP zero, recovery takes priority over quest walking after active battles have been handled. Unknown party telemetry waits. The controller selects the nearest estimated reachable inn from bundled world-map hints and collision paths; it does not choose the cheapest inn. Locked or unusable routes can pause recovery.
