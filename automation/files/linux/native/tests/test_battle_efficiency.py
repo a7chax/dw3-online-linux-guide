@@ -154,8 +154,8 @@ class BattleEfficiencyTests(unittest.TestCase):
         self.assertEqual(self.planner.learning['samples'].get(original),[20.0])
         self.assertFalse(self.planner.learning['samples'].get(wrong_actor))
 
-    def test_missing_basic_baseline_does_not_spend_known_skill_on_weak_enemy(self):
-        self.samples('skill',[1000],3)
+    def test_known_basic_baseline_does_not_spend_skill_on_weak_enemy(self):
+        self.samples('attack',[100.]);self.samples('skill',[1000],3)
         self.assertEqual(self.planner.decide(self.configured(enemy_hp=20))['kind'],'attack')
 
     def test_ineffective_heal_that_leaves_actor_in_predicted_danger_is_skipped(self):
@@ -210,6 +210,22 @@ class BattleEfficiencyTests(unittest.TestCase):
             self.planner.data['intent']={'battle':self.planner._identity(current['battle'])[0],
                 'reason':reason,'item_id':90,'target_slot':0}
             self.assertTrue(self.planner.decide(current)['back'])
+
+    def test_two_normal_hit_enemy_allows_affordable_skill_trial(self):
+        self.samples('attack',[100.])
+        decision=self.planner.decide(self.configured(enemy_hp=170))
+        self.assertEqual(decision['kind'],'skill')
+        self.assertEqual(decision['reason'],'explore_unknown_skill')
+
+    def test_healthy_actor_uses_known_skill_finisher_before_extra_basic_probe(self):
+        self.samples('skill',[200.],3)
+        decision=self.planner.decide(self.configured(hp=100,enemy_hp=150))
+        self.assertEqual(decision['kind'],'skill')
+        self.assertEqual(decision['reason'],'estimated_skill_finisher')
+
+    def test_known_normal_finisher_still_beats_known_skill_finisher(self):
+        self.samples('attack',[100.]);self.samples('skill',[200.],3)
+        self.assertEqual(self.planner.decide(self.configured(enemy_hp=80))['kind'],'attack')
 
     def test_mean_of_inconsistent_attack_samples_is_not_a_finisher_guarantee(self):
         self.samples('attack',[5,100])

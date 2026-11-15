@@ -13,7 +13,7 @@
     },
     {
       "path": "AI-GAME-CONTROL.md",
-      "sha256": "bf7c5f124ea489b3fe4cee6158a1a0c5b7fbac0f72e1b48c552d5fe196bc206b",
+      "sha256": "d30f436f270be64137ed403b6dd0f39fdef630aa7f955ca18d7e601836412c20",
       "mode": 420
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "8f0d710fd66a3f3cae608c5191ebbc031b311bf2ea8d812f8c8dde2208321fcc",
+      "sha256": "99d8c8fb8a81796848579c37158a9bf240909ae1b2615a18fe9de63a81fa6ea2",
       "mode": 420
     },
     {
@@ -68,7 +68,7 @@
     },
     {
       "path": "battle_policy.py",
-      "sha256": "1f025fbc8f8a940b39c6e72b2c37a807bf7a128a720f699f07f3744b0a9e758e",
+      "sha256": "9f6834a2f470b43853772d914d20ae2fc9d018c097cd06747aff2efd6af235bb",
       "mode": 420
     },
     {
@@ -228,7 +228,7 @@
     },
     {
       "path": "linux/native/tests/test_battle_efficiency.py",
-      "sha256": "882774719b92ed7a9c6b4d99c6100f996f4225a59b19797a3f8471a21d23f140",
+      "sha256": "86e67feba8d050433ec52cfad4511ca4b4f2f965d7255b5188f7bb1c166a0c5a",
       "mode": 420
     },
     {
@@ -478,7 +478,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "f033868bf5df5db7ec315bc0c389104ade8081b36679a74c8f4bb534ccee0955",
+      "sha256": "e65047f13104a728928cf5aa9097760ac70c239af13d10b50f3d414cef4d12cc",
       "mode": 420
     },
     {
@@ -488,7 +488,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "88597066b3cf0d2b395e7314813f1d4c649f6c81c17811e48609f65f6fb715fd",
+      "sha256": "c126b2d431cff29d6574f207bbdd02c6a5e5cf303635b938468683ff95260f99",
       "mode": 420
     },
     {

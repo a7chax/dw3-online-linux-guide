@@ -345,15 +345,14 @@ class BattlePlanner:
             if damage is not None and damage>0:known.append((option,damage))
         if chosen is not None and attack_estimate is not None and attack_estimate>=hp:
             reason='observed_attack_sufficient';finish=True
-        elif chosen is not None and attack_estimate is None and not (number(actor.get('hp')) and number(actor.get('max_hp'))
-                and actor['hp']<=actor['max_hp']*.15 and any(damage>=hp for _,damage in known)):
-            reason='attack_baseline_needed'
-            if number(enemy.get('max_hp')) and hp<=max(1,enemy['max_hp']*.02):finish=True;reason='low_hp_attack_probe'
         else:
             finishers=[(option,damage) for option,damage in known if damage>=hp]
             if finishers:
                 chosen,estimate=min(finishers,key=lambda row:(row[0]['ds_cost'],row[0]['skill_index']))
                 reason='estimated_skill_finisher';finish=True
+            elif chosen is not None and attack_estimate is None:
+                reason='attack_baseline_needed'
+                if number(enemy.get('max_hp')) and hp<=max(1,enemy['max_hp']*.02):finish=True;reason='low_hp_attack_probe'
             else:
                 attack_turns=math.ceil(hp/attack_estimate) if attack_estimate and attacks else math.inf
                 useful=[(o,d) for o,d in known if o in skills and math.ceil(hp/d)<attack_turns]
@@ -363,8 +362,8 @@ class BattlePlanner:
                 else:
                     untried=[o for o in skills if self._key(actor_form,enemy_form,'skill',o['skill_index']) not in self.data['explored']]
                     # Explore only after observing a normal-attack baseline,
-                    # with substantial DS and a target requiring multiple hits.
-                    if untried and (not attacks or (attack_estimate is not None and hp>attack_estimate*2
+                    # with substantial DS whenever a normal attack cannot finish.
+                    if untried and (not attacks or (attack_estimate is not None and hp>attack_estimate
                             and actor.get('ds',0)>=actor.get('max_ds',0)*.35)):
                         chosen=min(untried,key=lambda o:(o['ds_cost'],o['skill_index']));estimate=None;reason='explore_unknown_skill'
         if chosen is None:return None
