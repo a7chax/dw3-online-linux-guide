@@ -140,6 +140,8 @@ class Supervisor:
         self.battle_space=bool(battle_space)
         self.close_popups=bool(close_popups);self.last_popup_check=-math.inf
         self.repair_manager=repair_manager
+        from fishing_goal import FishingGoal
+        self.fishing_goal=FishingGoal(self.session);self.fishing_decision=None
         from inn_recovery import InnRecovery
         self.inn_recovery=InnRecovery(self.session,clock=self.clock);self.inn_decision=None
         from stall_watch import StallWatch
@@ -315,7 +317,7 @@ class Supervisor:
             'cycles':self.cycles,'actions':self.actions,'progress_events':self.progress_events,
             'battle_space_enabled':self.battle_space,'codex_repair_enabled':self.repair_manager is not None,
             'background_input_enabled':self.state.get('native_background_input') is True,
-            'inn_recovery':self.inn_recovery.report(),
+            'inn_recovery':self.inn_recovery.report(),'fishing_goal':self.fishing_goal.report(),
             'supplies_recovery':self.supplies_recovery.report(),
             'tactical_battle_enabled':self.battle_space and self.state.get('native_battle_control') is True,
             'stall_repair_pending':self.stall_trigger['reason'] if self.stall_trigger else None,
@@ -423,7 +425,11 @@ class Supervisor:
             result=original_request(operation,**parameters)
             if operation=='status':
                 owner.check_input(result)
-                owner.record_watch(result,'poll')
+                owner.record_watch(result,'poll');owner.fishing_goal.observe(result)
+                fishing=result.get('fishing') or {}
+                if (action=='fishing_travel' and owner.fishing_goal.fishing and not owner.fishing_goal.saved.get('refresh_lake')
+                        and result.get('map') in ('s380','s381','s950') and fishing.get('telemetry_complete') is True
+                        and fishing.get('at_spot') is True):raise InputPaused('fishing_spot_detected')
                 if action in ('cached_recovery','popup_close'):
                     owner.check_input(result,expected_map)
                     if owner.route_identity(result)!=expected_route_identity:raise InputPaused('cached_route_changed')
@@ -548,6 +554,26 @@ class Supervisor:
                 self.blocked_interactions[signature]=self.clock()
             return {'reason':'interaction_alignment_attempted','current':after}
 
+    def perform_fishing_action(self,action):
+        fresh=self.game.request('status');self.check_input(fresh,self.state['map'])
+        decision=self.fishing_goal.decide(fresh)
+        if not decision or decision.get('action')!=action:raise InputPaused('fishing_state_changed')
+        self.fishing_decision=decision
+        if action=='fishing_travel':
+            return self.game.follow_trace(seconds=12,destination=tuple(decision['destination']),cross_map=decision['cross_map'])
+        if action=='fishing_align':
+            with self.game.navigation_lease():
+                result=self.game.move(*decision['step'],focus=False,quiet=True,expected_map=fresh['map'],expected_pid=self.expected_pid)
+                return {'reason':'fishing_alignment_attempted','current':result['after']}
+        if action in ('fishing_cast','fishing_reel','fishing_exhausted'):
+            if fresh.get('native_fishing_control') is not True:raise InputPaused('fishing_control_unavailable')
+            with self.game.navigation_lease():
+                reply=self.game.request('fishing_step',mode=action.removeprefix('fishing_'),
+                    expected_state_token=decision['expected_token'],**self.automation_parameters(fresh))
+            plan=reply.get('plan') or {}
+            return {'reason':plan.get('reason','fishing_wait'),'current':reply.get('after') or self.game.request('status')}
+        raise InputPaused('fishing_control_unavailable')
+
     def perform_inn_action(self,action):
         expected_map=self.state['map']
         fresh=self.game.request('status');self.check_input(fresh,expected_map)
@@ -663,16 +689,20 @@ class Supervisor:
         except StopRequested:raise
         except InputPaused as error:self.pause(str(error));return
         except Exception:self.pause('popup_check_failed',2);return
+        self.fishing_goal.observe(self.state)
         self.battle_planner.observe(self.state)
         current=fingerprint(self.state)
         if self.last_seen is not None and current!=self.last_seen:
             self.no_progress=0;self.cooldown=0
         self.last_seen=current
         planning=self.routing_state(self.state)
-        self.inn_decision=self.inn_recovery.decide(self.state)
-        self.supplies_decision=None if self.inn_decision else self.supplies_recovery.decide(self.state)
+        self.fishing_decision=self.fishing_goal.decide(self.state)
+        self.inn_decision=None if self.fishing_goal.fishing else self.inn_recovery.decide(self.state)
+        self.supplies_decision=None if self.inn_decision or self.fishing_goal.fishing else self.supplies_recovery.decide(self.state)
         self.battle_decision=None
-        if self.inn_decision:
+        if self.fishing_decision:
+            action,reason=self.fishing_decision['action'],self.fishing_decision['reason']
+        elif self.inn_decision:
             action,reason=self.inn_decision['action'],self.inn_decision['reason']
             if action=='inn_recovered':
                 self.cooldown=0;self.no_progress=0;self.progress_events+=1
@@ -707,7 +737,7 @@ class Supervisor:
         if action is None:
             if reason=='modal_changed' and battle.get('command_ready'):self.record_watch(self.state,reason,'battle_choice')
             self.maybe_repair(reason)
-            self.pause(reason);return
+            self.pause(reason,.05 if reason=='fishing_wait_timing' else 1);return
         if now<self.cooldown and not action.startswith(('inn_','supplies_','battle_')):self.pause('no_progress_backoff',min(1,self.cooldown-now));return
         signature=self.recovery_signature(self.state)
         if action=='follow' and self.pending_recovery==signature:
@@ -715,7 +745,8 @@ class Supervisor:
         self.publish('acting',reason,action=action)
         try:
             with self.guarded_actions(action),(self.session/'autoplay-actions.log').open('a') as log,redirect_stdout(log),redirect_stderr(log):
-                if action.startswith('battle_'):result=self.perform_battle_action(self.battle_decision)
+                if action.startswith('fishing_'):result=self.perform_fishing_action(action)
+                elif action.startswith('battle_'):result=self.perform_battle_action(self.battle_decision)
                 elif action.startswith('supplies_'):result=self.perform_supplies_action(action)
                 elif action.startswith('inn_'):result=self.perform_inn_action(action)
                 elif action=='align':result=self.align_interaction()
@@ -741,16 +772,18 @@ class Supervisor:
             self.maybe_repair('action_failed',type(error).__name__)
             self.wait(1);return
         self.actions+=1
+        if action.startswith('fishing_'):self.fishing_goal.note_result(self.fishing_decision,result)
         if action.startswith('inn_'):self.inn_recovery.note_result(self.inn_decision,result)
         if action.startswith('supplies_'):self.supplies_recovery.note_result(self.supplies_decision,result)
         after=result.get('current',self.state);result_reason=result.get('reason','unknown_result')
+        self.fishing_goal.observe(after)
         self.remember_route(after)
         interrupted=bool((after.get('battle') or {}).get('active') or (after.get('story') or {}).get('active'))
         if fingerprint(after)!=current:
             self.progress_events+=1;self.no_progress=0;self.cooldown=0
         # Ready story/result pages need not change position or quest. Their
         # freshly verified Space action already has its own one-second bound.
-        elif action in ('battle_choice','battle_back','supplies_step'):
+        elif action in ('battle_choice','battle_back','supplies_step','fishing_cast','fishing_reel','fishing_exhausted'):
             self.cooldown=0
         elif not (interrupted and action in ('follow','local_recovery','cached_recovery','space')):
             self.no_progress+=1;self.cooldown=self.clock()+min(60,2**min(self.no_progress,6))

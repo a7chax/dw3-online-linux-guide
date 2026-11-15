@@ -13,7 +13,7 @@
     },
     {
       "path": "AI-GAME-CONTROL.md",
-      "sha256": "44236b80253117e4cc497759d5a2f0861451e306925f118245d806473722e7d9",
+      "sha256": "04de4919a25eec32c505b2f21232b90c7110ba52e6b202693d0ce8425cf58fd9",
       "mode": 420
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "path": "README-AUTOPLAY.md",
-      "sha256": "ed4b1b4e63789899e5138417be94b4d9fbc216e6fe1faa164361abf590a2d976",
+      "sha256": "017bc01aa13f5c95e211fcbe6ba6bdedf119f42c8bbc5084db71ddfa193fa045",
       "mode": 420
     },
     {
@@ -58,12 +58,12 @@
     },
     {
       "path": "automation.py",
-      "sha256": "85b4af32305d82078158d3e2d9ddc3d6ba27302ce3167dda02f75402be563299",
+      "sha256": "8236e3c1d8a32aa26d85cf455a193cdc41b1296502ebb2e3db710b798dda6490",
       "mode": 420
     },
     {
       "path": "autoplay.py",
-      "sha256": "21500a100bf08a5ccd6ac81727d2f1faa3ec0503672a8d8cd7250f83eab15583",
+      "sha256": "82ce757a34a45248f21a1a96a064eef26772e0cd3d42504f89c99489de2abae8",
       "mode": 420
     },
     {
@@ -92,6 +92,11 @@
       "mode": 420
     },
     {
+      "path": "docs/fishing-research.md",
+      "sha256": "e1e2cafce5dda2da4aae935256ba6350de383882b9e592957a6ba902b88ee67f",
+      "mode": 420
+    },
+    {
       "path": "docs/inn-routing-findings.md",
       "sha256": "c46f017a85ed8d06337ef89916ffbe2febf95d0b93a1756b1a92e09c28e2554b",
       "mode": 420
@@ -107,6 +112,11 @@
       "mode": 420
     },
     {
+      "path": "fishing_goal.py",
+      "sha256": "f131c1c48183854105f42a461db5d5f8c92ad984b87eb29abbf6bdca39f95f74",
+      "mode": 420
+    },
+    {
       "path": "game-control.py",
       "sha256": "23c272d04ebfa9a9d457917e7b412f244cf611b989cbebbf0199d1143db6634b",
       "mode": 493
@@ -119,6 +129,11 @@
     {
       "path": "inn_routes.py",
       "sha256": "83e57628726bc01407598ce4140d4bac84b0cfaae4efeeac653191491023b57a",
+      "mode": 420
+    },
+    {
+      "path": "lake_shore.py",
+      "sha256": "b56ac3bbf4dea02a4b2b27ecc51314dbb9fdc8dbef4d678b63723fd28fc52563",
       "mode": 420
     },
     {
@@ -173,12 +188,17 @@
     },
     {
       "path": "linux/native/src/dw3/linux/ControlBridge.java",
-      "sha256": "cfb0ccfa905a490502a4ed38e391962e005a67d262d8e2feec27f1c066030623",
+      "sha256": "4312246880bea873436b8865071041d5246ea4bc167cdf494a6715ddb495003c",
       "mode": 420
     },
     {
       "path": "linux/native/src/dw3/linux/DesktopLauncher.java",
       "sha256": "cece38d6748ea547806f88b7341fc4200d51969fbd9ffdebe0e7eba52ff66f41",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/src/dw3/linux/FishingControl.java",
+      "sha256": "1e04b11cc3df1580baaba7337e34ce8943aad351d3d2700eb027e0d1cb599955",
       "mode": 420
     },
     {
@@ -213,7 +233,7 @@
     },
     {
       "path": "linux/native/tests/test_automation_entry.py",
-      "sha256": "8a7114d56afcec758b1ea6eedd04bd72e09de5ddb272da184f0b495f3f6228d8",
+      "sha256": "bf2a91879c4caadc33251bccabab052de5163bc8d066ef458018938df0239c77",
       "mode": 420
     },
     {
@@ -267,6 +287,16 @@
       "mode": 420
     },
     {
+      "path": "linux/native/tests/test_fishing_control.py",
+      "sha256": "07defdcbd5307c1b46ee24f6e0c7d82fa5ef3d55a406cb727285c50a3ca6ebb6",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_fishing_goal.py",
+      "sha256": "d163426a32336f10167908f92bd6531c1896c77222c25e97e669d9cbfcd14ebe",
+      "mode": 420
+    },
+    {
       "path": "linux/native/tests/test_follow_interruptions.py",
       "sha256": "2faf1ec24d0a67f029338d291799d8ebd9b617acf2973b58ba8ecbc0df32edf3",
       "mode": 420
@@ -294,6 +324,11 @@
     {
       "path": "linux/native/tests/test_interaction_approach.py",
       "sha256": "06671fd265d415bdcf6d9f50a73e00bacf7a6888f62ab503368d0765613ce1be",
+      "mode": 420
+    },
+    {
+      "path": "linux/native/tests/test_lake_shore.py",
+      "sha256": "0546a57553e7413c927471ae098951bab65744d8130b9827d0aa6a6f208714ee",
       "mode": 420
     },
     {
@@ -413,7 +448,7 @@
     },
     {
       "path": "linux/native/tests/test_tactical_integration.py",
-      "sha256": "c761905dfdb15522138f24ab219d9f7119c0cb82df25fb0b58d19fa7bc740845",
+      "sha256": "1098ae4d64e64e53ba1b9481a44f4ff6f6645e86f91d2b2e6347348498b4c78f",
       "mode": 420
     },
     {
@@ -478,7 +513,7 @@
     },
     {
       "path": "skills/dw3-linux-control/SKILL.md",
-      "sha256": "7459b2caf70268d5573066715a2d64233256bff38781752dd093ca3cddbb4500",
+      "sha256": "741d059a9d954f184c40ff07f4e6b539ccf12550f664c07db4e8dc37da69e1bb",
       "mode": 420
     },
     {
@@ -488,7 +523,7 @@
     },
     {
       "path": "skills/dw3-linux-control/references/state-and-adapter.md",
-      "sha256": "f9ac94e2a98428c580f52ba3aa7138248c4296eadda91eee201d8dd2f3c7fb07",
+      "sha256": "6af748c6a62df697fd24882c4c2ef712951addf3f18bf64e6c1d5ee3b7f5456d",
       "mode": 420
     },
     {

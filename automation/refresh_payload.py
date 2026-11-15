@@ -27,7 +27,7 @@ def main():
     for source in (workspace / 'skills/dw3-linux-control').rglob('*'):
         if source.is_file() and (source.suffix == '.md' or source.name == 'openai.yaml'):
             sources[str(source.relative_to(workspace))] = source
-    for name in (*sorted(install.FIXTURE_FILES), 'scripts/export-quest-text.py', 'docs/autoplay-design.md', 'docs/inn-routing-findings.md', 'docs/battle-research.md', 'docs/item-shop-research.md', 'docs/AI-BATTLE-MODEL-DRAFT.md', 'docs/superpowers/plans/2026-11-15-battle-skills-items.md'):
+    for name in (*sorted(install.FIXTURE_FILES), 'scripts/export-quest-text.py', 'docs/autoplay-design.md', 'docs/inn-routing-findings.md', 'docs/battle-research.md', 'docs/item-shop-research.md', 'docs/fishing-research.md', 'docs/AI-BATTLE-MODEL-DRAFT.md', 'docs/superpowers/plans/2026-11-15-battle-skills-items.md'):
         sources[name] = workspace / name
     entries = []
     for name, source in sorted(sources.items()):

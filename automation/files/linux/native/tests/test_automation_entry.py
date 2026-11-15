@@ -15,7 +15,7 @@ entry=importlib.util.module_from_spec(spec);spec.loader.exec_module(entry)
 
 def world():
     return {'phase':'world','pid':123,'map':'fixture','native_key_input':['space','enter','g','x'],
-            'native_click_input':True,'native_background_input':True,'native_capture':True,'native_inn_recovery':True,'native_battle_control':True,'native_supplies_control':True}
+            'native_click_input':True,'native_background_input':True,'native_capture':True,'native_inn_recovery':True,'native_battle_control':True,'native_supplies_control':True,'native_fishing_control':True}
 
 class EntryTests(unittest.TestCase):
     def setUp(self):
@@ -40,6 +40,11 @@ class EntryTests(unittest.TestCase):
     def run_entry(self,**kwargs):
         return entry.run(root=self.root,game=self.game,supervisor_factory=self.factory,
                          runner=self.runner,which=lambda name:'/tools/'+name,window_factory=self.window_factory,**kwargs)
+    def test_fishing_capability_is_required_for_current_bridge(self):
+        state=world();state.pop('native_fishing_control')
+        self.assertFalse(entry.native_input(state))
+        state['native_fishing_control']=True;self.assertTrue(entry.native_input(state))
+
     def test_existing_world_needs_no_build_and_starts_all_approved_features(self):
         self.run_entry(max_cycles=3)
         self.runner.assert_not_called();self.game.login_settings.assert_not_called()

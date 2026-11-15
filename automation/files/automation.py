@@ -18,7 +18,8 @@ def native_input(state):
                 and state.get('native_click_input') is True
                 and state.get('native_background_input') is True and state.get('native_capture') is True
                 and state.get('native_inn_recovery') is True
-                and state.get('native_battle_control') is True and state.get('native_supplies_control') is True)
+                and state.get('native_battle_control') is True and state.get('native_supplies_control') is True
+                and state.get('native_fishing_control') is True)
 
 
 def controller_running(session):

@@ -81,6 +81,66 @@ class TacticalIntegrationTests(unittest.TestCase):
   self.assertEqual(self.game.actions[0][0],'follow')
   self.assertTrue(sup.inn_recovery.report()['deferred'])
 
+ def test_confirmed_defeat_is_saved_before_result_acknowledgement(self):
+  s=combat();s['battle'].update(result='defeat',result_ready=True,can_advance=True,command_ready=False)
+  sup=self.supervisor(s);sup.run(max_cycles=1)
+  self.assertEqual(self.game.actions[0][0],'scene')
+  self.assertEqual(sup.fishing_goal.report()['losses'],1)
+  self.assertEqual(sup.fishing_goal.report()['mode'],'diverlake_fishing')
+
+ def test_fishing_goal_overrides_main_quest_and_inn_travel(self):
+  s=world();sup=self.supervisor(s)
+  sup.fishing_goal.saved.update(mode='diverlake_fishing',losses=1)
+  sup.fishing_goal.decide=lambda state:{'action':None,'reason':'fishing_route_unavailable'}
+  sup.inn_recovery.decide=lambda state:{'action':'inn_travel','reason':'travel_to_closest_inn'}
+  sup.run(max_cycles=1)
+  self.assertEqual(self.game.actions,[])
+  import json
+  events=[json.loads(line) for line in (self.session/'autoplay-events.jsonl').read_text().splitlines()]
+  self.assertTrue(any(e['reason']=='fishing_route_unavailable' for e in events))
+
+ def test_fishing_travel_uses_bounded_guarded_local_destination(self):
+  s=world();sup=self.supervisor(s);sup.fishing_goal.saved.update(mode='diverlake_fishing',losses=1)
+  sup.fishing_goal.decide=lambda state:{'action':'fishing_travel','reason':'travel_to_diverlake',
+   'map':state['map'],'destination':(80,90),'cross_map':True}
+  sup.run(max_cycles=1)
+  self.assertEqual(self.game.actions[0],('follow',{'seconds':12,'destination':(80,90),'cross_map':True}))
+
+ def test_lake_uses_guarded_fishing_rpc_without_battle_space(self):
+  s=world();s.update(map='s380',x=590.,y=519.,native_fishing_control=True)
+  s['fishing']={'telemetry_complete':True,'can_cast':True,'state_token':'cast-1'}
+  sup=self.supervisor(s);sup.fishing_goal.saved.update(mode='diverlake_fishing',losses=1)
+  original=self.game.request
+  def request(op,**kwargs):
+   if op=='fishing_step':
+    self.game.actions.append((op,kwargs));s['fishing']['can_cast']=False
+    return {'plan':{'key':'space','reason':'fishing_cast'},'after':copy.deepcopy(s)}
+   return original(op,**kwargs)
+  self.game.request=request;sup.run(max_cycles=1)
+  self.assertEqual(self.game.actions[0][0],'fishing_step')
+  args=self.game.actions[0][1]
+  self.assertEqual(args['mode'],'cast');self.assertEqual(args['expected_state_token'],'cast-1')
+  self.assertEqual(args['expected_map'],'s380');self.assertEqual(args['expected_pid'],123)
+  self.assertEqual(args['expected_quest'],{'chapter':5,'step':3})
+
+ def test_changed_fishing_readiness_blocks_dispatch(self):
+  s=world();s.update(map='s380',x=590.,y=519.,native_fishing_control=True)
+  s['fishing']={'telemetry_complete':True,'can_cast':True,'state_token':'cast-1'}
+  sup=self.supervisor(s);sup.fishing_goal.saved.update(mode='diverlake_fishing',losses=1)
+  sup.state=copy.deepcopy(s);sup.expected_pid=123;sup.ensure_window()
+  s['fishing']['can_cast']=False
+  with self.assertRaises(autoplay.InputPaused):sup.perform_fishing_action('fishing_cast')
+  self.assertEqual(self.game.actions,[])
+
+ def test_fishing_travel_stops_on_server_fishing_spot(self):
+  s=world();s.update(map='s380',native_fishing_control=True)
+  s['fishing']={'telemetry_complete':True,'at_spot':True}
+  sup=self.supervisor(s);sup.fishing_goal.saved.update(mode='diverlake_fishing',losses=1)
+  sup.state=copy.deepcopy(s);sup.expected_pid=123;sup.ensure_window()
+  with self.assertRaisesRegex(autoplay.InputPaused,'fishing_spot_detected'):
+   with sup.guarded_actions('fishing_travel'):self.game.request('status')
+  self.assertEqual(self.game.actions,[])
+
  def test_battle_choice_rejects_map_change_before_native_dispatch(self):
   sup=self.supervisor(combat());sup.state=copy.deepcopy(self.state);sup.expected_pid=123;sup.ensure_window()
   decision={'option_index':1,'expected_token':'menu1','battle_id':'b7','kind':'skill','target_group':1}

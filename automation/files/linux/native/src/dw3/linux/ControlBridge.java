@@ -86,6 +86,26 @@ public final class ControlBridge implements AutoCloseable {
             if(operation.equals("battle_back"))BattleControl.back(current,request);else BattleControl.choose(current,request);
             JsonObject result=new JsonObject();result.add("before",before);result.add("after",status());return result;
         });
+        if(operation.equals("fishing_step")) {
+            int[] pressed={-1};JsonObject[] plan={null};JsonElement before;
+            try {
+                before=onRender(()->{
+                    JsonObject snapshot=guardAutomationInput(request);
+                    String map=snapshot.get("map").getAsString();
+                    if(!java.util.Set.of("s380","s381","s950").contains(map))
+                        throw new IllegalStateException("Fishing destination changed");
+                    plan[0]=FishingControl.plan(screen(),request.get("mode").getAsString(),request.get("expected_state_token").getAsString());
+                    if(plan[0].has("key") && !plan[0].get("key").isJsonNull()) {
+                        pressed[0]=normalKey(plan[0].get("key").getAsString());key(pressed[0],1);
+                    }
+                    return snapshot;
+                });
+                if(pressed[0]>=0)Thread.sleep(80);
+            } finally {
+                if(pressed[0]>=0)onRender(()->{key(pressed[0],0);return JsonNull.INSTANCE;},false);
+            }
+            JsonObject result=new JsonObject();result.add("before",before);result.add("plan",plan[0]);result.add("after",onRender(this::status));return result;
+        }
         if(operation.equals("supplies_step")) {
             int[] pressed={-1};JsonObject[] plan={null};JsonElement before;
             try {
@@ -252,7 +272,7 @@ public final class ControlBridge implements AutoCloseable {
         output.addProperty("native_background_input",backgroundWindow!=null);
         output.addProperty("native_capture",true);
         output.addProperty("native_inn_recovery",true);
-        output.addProperty("native_battle_control",true);output.addProperty("native_supplies_control",true);
+        output.addProperty("native_battle_control",true);output.addProperty("native_supplies_control",true);output.addProperty("native_fishing_control",true);
         output.add("window_focused",windowAttribute(0x00020001));
         output.add("window_minimized",windowAttribute(0x00020002));
         output.addProperty("movement_ready","world".equals(output.get("phase").getAsString())
@@ -281,6 +301,7 @@ public final class ControlBridge implements AutoCloseable {
             output.add("wallet",walletSnapshot(current));
             output.add("inn",innSnapshot(current));
             output.add("supplies",SuppliesControl.snapshot(current));
+            output.add("fishing",FishingControl.snapshot(current));
             String map=output.has("map") && !output.get("map").isJsonNull()?output.get("map").getAsString():null;
             JsonObject inns=nearbyInnsSnapshot(current,map);
             output.add("nearby_inns",inns.get("npcs"));output.add("nearby_inns_complete",inns.get("telemetry_complete"));
