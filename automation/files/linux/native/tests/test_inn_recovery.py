@@ -31,6 +31,72 @@ class InnTests(unittest.TestCase):
         s['inn']={'active':True,'telemetry_complete':True,'state':'offer','selected_option':0,
                   'cost_bits':100,'can_confirm':True,'submitted':False}
         s['inn'].update(changes);return s
+    def test_missing_inn_route_defers_and_returns_control_to_quest(self):
+        from world_map import NoRouteError
+        class Missing:
+            calls=0
+            def plan(self,*args,**kwargs):self.calls+=1;raise NoRouteError('No link')
+        missing=Missing();self.recovery.router_factory=lambda:missing
+        self.assertIsNone(self.recovery.decide(state()))
+        self.assertTrue(self.recovery.report()['deferred'])
+        self.assertEqual(self.recovery.report()['deferred_reason'],'inn_route_unavailable')
+        self.assertIsNone(self.recovery.decide(state()));self.assertEqual(missing.calls,1)
+        resumed=InnRecovery(self.session,router_factory=lambda:missing,clock=lambda:self.now)
+        self.assertIsNone(resumed.decide(state()));self.assertEqual(missing.calls,1)
+
+    def test_unreachable_keeper_stops_detour_after_bounded_failures(self):
+        current=state();current.update(map='inn',x=10.,y=10.)
+        current['nearby_inns']=[{'map':'inn','logical_id':20,'entity_id':7,'x':100,'y':100}]
+        for _ in range(3):
+            decision=self.recovery.decide(current)
+            self.recovery.note_result(decision,{'reason':'local_route_unavailable','current':current})
+        self.assertIsNone(self.recovery.decide(current))
+        self.assertTrue(self.recovery.report()['deferred'])
+
+    def test_reachable_nearby_keeper_can_override_deferred_trip(self):
+        from world_map import NoRouteError
+        class Missing:
+            def plan(self,*args,**kwargs):raise NoRouteError('No link')
+        self.recovery.router_factory=Missing
+        self.recovery.decide(state())
+        current=state();current.update(map='other-inn',x=40.,y=50.,facing=6)
+        current['nearby_inns']=[{'map':'other-inn','logical_id':20,'entity_id':9,'x':50,'y':50,'can_interact':True,'interaction_facings':[6]}]
+        self.assertEqual(self.recovery.decide(current)['action'],'inn_interact')
+
+    def test_inn_retry_is_bounded_by_cooldown(self):
+        from world_map import NoRouteError
+        class Flaky:
+            fail=True;calls=0
+            def plan(inner,*args,**kwargs):
+                inner.calls+=1
+                if inner.fail:raise NoRouteError('No link')
+                return self.router.plan(*args,**kwargs)
+        router=Flaky();self.recovery.router_factory=lambda:router
+        self.recovery.decide(state());router.fail=False
+        self.now=299;self.assertIsNone(self.recovery.decide(state()));self.assertEqual(router.calls,1)
+        self.now=301;self.assertEqual(self.recovery.decide(state())['action'],'inn_travel');self.assertEqual(router.calls,2)
+
+    def test_deferral_keeps_fainted_state_and_blocks_when_no_member_can_fight(self):
+        from world_map import NoRouteError
+        class Missing:
+            def plan(self,*args,**kwargs):raise NoRouteError('No link')
+        self.recovery.router_factory=Missing
+        current=state();before=copy.deepcopy(current)
+        self.assertIsNone(self.recovery.decide(current));self.assertEqual(current,before)
+        current['party']['members'][0]['hp']=0
+        decision=self.recovery.decide(current)
+        self.assertIsNone(decision['action']);self.assertEqual(decision['reason'],'all_party_fainted')
+
+    def test_real_inn_offer_can_be_used_during_deferred_quest_mode(self):
+        from world_map import NoRouteError
+        class Missing:
+            def plan(self,*args,**kwargs):raise NoRouteError('No link')
+        self.recovery.router_factory=Missing;self.recovery.decide(state())
+        offer=self.offer();decision=self.recovery.decide(offer)
+        self.assertEqual(decision['action'],'inn_stay')
+        self.recovery.note_result(decision,{'current':offer})
+        self.assertIsNone(self.recovery.decide(offer)['action'])
+
     def test_any_reserve_faint_triggers_inn_travel(self):
         decision=self.recovery.decide(state())
         self.assertEqual(decision['action'],'inn_travel');self.assertTrue(decision['cross_map'])
@@ -80,14 +146,15 @@ class InnTests(unittest.TestCase):
                          {'map':'inn','logical_id':20,'entity_id':8,'x':70,'y':50,
                           'can_interact':True,'interaction_facings':[6]}]
         d=self.recovery.decide(s);self.assertEqual(d['action'],'inn_interact');self.assertEqual(d['npc']['entity_id'],8)
-    def test_failed_nearby_inn_is_excluded_before_selecting_another(self):
+    def test_failed_nearby_inn_is_excluded_while_quest_resumes(self):
         s=state();s.update(map='inn',x=10.,y=10.)
         s['nearby_inns']=[{'map':'inn','logical_id':20,'entity_id':7,'x':100,'y':100}]
         for _ in range(3):
             d=self.recovery.decide(s);self.recovery.note_result(d,{'reason':'local_route_unavailable','current':s})
         d=self.recovery.decide(s)
-        self.assertEqual(self.router.calls[-1][-1],('inn',))
-        self.assertIsNone(d['action'])
+        self.assertEqual(self.recovery.job['excluded'],['inn'])
+        self.assertEqual(self.router.calls,[])
+        self.assertIsNone(d)
     def test_ambiguous_gatomon_is_only_a_candidate_until_inn_offer(self):
         s=state();s.update(map='inn',x=40.,y=50.,facing=6)
         s['nearby_inns']=[{'map':'inn','logical_id':None,'inn_candidate':True,'entity_id':e,'x':x,'y':50}

@@ -42,10 +42,21 @@ class InnRecovery:
 
     def report(self):
         return {'pending':self.pending,'inn_id':(self.job or {}).get('inn_id'),
-                'stay_sent':(self.job or {}).get('stay_sent',False)}
+                'stay_sent':(self.job or {}).get('stay_sent',False),
+                'deferred':(self.job or {}).get('deferred_until',0)>self.clock(),
+                'deferred_reason':(self.job or {}).get('deferred_reason'),
+                'retry_after_seconds':max(0,round((self.job or {}).get('deferred_until',0)-self.clock()))}
 
     @staticmethod
     def wait(reason):return {'action':None,'reason':reason}
+
+    def defer(self,reason,state):
+        # A failed inn trip must not block the main quest while living party
+        # members remain. Keep the actual fainted state and bounded retry intent.
+        if not any(member.get('hp',0)>0 for member in (state.get('party') or {}).get('members',[])):
+            return self.wait('all_party_fainted')
+        self.job.update(deferred_until=self.clock()+300,deferred_reason=reason)
+        self.save();return None
 
     def decide(self,state):
         if state.get('native_inn_recovery') is not True:return None
@@ -76,6 +87,18 @@ class InnRecovery:
         if self.job.get('stay_sent'):
             if self.clock()-self.job.get('stay_time',self.clock())<10:return self.wait('inn_revival_verifying')
             return self.wait('inn_revival_unconfirmed')
+        until=self.job.get('deferred_until',0)
+        if until:
+            nearby_ready=any(n.get('map')==state['map'] and state['map'] not in self.job['excluded']
+                and (n.get('logical_id')==20 or n.get('inn_candidate') is True)
+                and f"{state['map']}:{n.get('entity_id')}" not in self.job.get('excluded_npcs',[])
+                and (n.get('can_interact') is True or bool(n.get('interaction_facings')))
+                for n in state.get('nearby_inns',[]))
+            if self.clock()<until and not nearby_ready:
+                if not any(m.get('hp',0)>0 for m in (state.get('party') or {}).get('members',[])):return self.wait('all_party_fainted')
+                return None
+            self.job.pop('deferred_until',None);self.job.pop('deferred_reason',None)
+            self.job.update(failures=0,align_attempts=0,interact_attempts=0);self.save()
         if state.get('movement_ready') is not True:return self.wait('inn_waiting_for_world')
         nearby=state.get('nearby_inns') or []
         npc=min((n for n in nearby if n.get('map')==state['map']
@@ -97,18 +120,20 @@ class InnRecovery:
                     step=(direction,50)
                 if step and self.job.get('align_attempts',0)<2:
                     return {'action':'inn_align','reason':'face_innkeeper','step':step,'npc':npc,'map':state['map']}
-                if self.job.get('interact_attempts',0)>=3:return self.wait('inn_interaction_unconfirmed')
+                if self.job.get('interact_attempts',0)>=3:
+                    self.job.setdefault('excluded_npcs',[]).append(f"{state['map']}:{npc.get('entity_id')}")
+                    return self.defer('inn_interaction_unconfirmed',state)
                 return {'action':'inn_interact','reason':'speak_to_innkeeper','npc':npc,'map':state['map']}
             return {'action':'inn_travel','reason':'approach_innkeeper','npc':npc,'map':state['map'],
                     'destination':(npc['x'],npc['y']),'cross_map':False}
         try:
             if self.router is None:self.router=self.router_factory()
             plan=self.router.plan(state['map'],state['x'],state['y'],excluded=self.job['excluded'])
-        except (OSError,ValueError,NoRouteError):return self.wait('inn_route_unavailable')
-        if plan['inn_id'] in self.job['excluded']:return self.wait('inn_route_unavailable')
+        except (OSError,ValueError,NoRouteError):return self.defer('inn_route_unavailable',state)
+        if plan['inn_id'] in self.job['excluded']:return self.defer('inn_route_unavailable',state)
         self.job['inn_id']=plan['inn_id'];self.save()
         leg=plan['legs'][0]
-        if leg['kind']=='inn':return self.wait('innkeeper_telemetry_unavailable')
+        if leg['kind']=='inn':return self.defer('innkeeper_telemetry_unavailable',state)
         return {'action':'inn_travel','reason':'travel_to_closest_inn','map':state['map'],
                 'destination':(leg['x'],leg['y']),'cross_map':leg['kind']=='exit',
                 'expected_next_maps':leg.get('expected_next_maps',[]),'inn_id':plan['inn_id']}
@@ -136,5 +161,6 @@ class InnRecovery:
                 self.job['failures']=self.job.get('failures',0)+1
                 if self.job['failures']>=3:
                     self.job['excluded'].append(self.job['inn_id']);self.job['failures']=0
+                    self.defer('innkeeper_unreachable',result.get('current') or {})
             elif result.get('reason')=='map_changed':self.job.update(failures=0,align_attempts=0,interact_attempts=0)
         self.save()

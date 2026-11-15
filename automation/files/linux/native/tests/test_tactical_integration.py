@@ -70,6 +70,17 @@ class TacticalIntegrationTests(unittest.TestCase):
   self.assertEqual(s['supplies']['party'][0]['hp'],100)
   self.assertIsNone(sup.supplies_recovery.use)
 
+ def test_unreachable_inn_resumes_main_quest_with_living_party(self):
+  from world_map import NoRouteError
+  class Missing:
+   def plan(self,*args,**kwargs):raise NoRouteError('No link')
+  current=world();current.update(native_inn_recovery=True,inn={'active':False},nearby_inns=[],
+   party={'telemetry_complete':True,'count':2,'members':[{'id':1,'hp':100,'max_hp':100},{'id':2,'hp':0,'max_hp':100}]})
+  sup=self.supervisor(current);sup.inn_recovery.router_factory=Missing
+  sup.run(max_cycles=1)
+  self.assertEqual(self.game.actions[0][0],'follow')
+  self.assertTrue(sup.inn_recovery.report()['deferred'])
+
  def test_battle_choice_rejects_map_change_before_native_dispatch(self):
   sup=self.supervisor(combat());sup.state=copy.deepcopy(self.state);sup.expected_pid=123;sup.ensure_window()
   decision={'option_index':1,'expected_token':'menu1','battle_id':'b7','kind':'skill','target_group':1}
